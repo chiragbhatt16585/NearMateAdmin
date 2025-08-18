@@ -1,0 +1,225 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id             String   @id @default(uuid())
+  email          String   @unique
+  name           String
+  hashedPassword String
+  role           String   @default("admin")
+  status         String   @default("active")
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+  refreshTokens  RefreshToken[]
+  profile        UserProfile?
+  provider       ServiceProvider?
+  bookings       Booking[]       @relation("UserBookings")
+}
+
+model RefreshToken {
+  id         String   @id @default(uuid())
+  userId     String
+  user       User     @relation(fields: [userId], references: [id])
+  hashedToken String
+  userAgent  String?
+  ip         String?
+  revokedAt  DateTime?
+  expiresAt  DateTime
+  createdAt  DateTime @default(now())
+}
+
+model AuditLog {
+  id         String   @id @default(uuid())
+  actorId    String
+  action     String
+  entityType String
+  entityId   String
+  metadata   Json?
+  createdAt  DateTime @default(now())
+}
+
+model Item {
+  id          String   @id @default(uuid())
+  name        String
+  description String?
+  status      String   @default("active")
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model UserProfile {
+  id        String   @id @default(uuid())
+  userId    String   @unique
+  user      User     @relation(fields: [userId], references: [id])
+  phone     String?
+  address   String?
+  lat       Float?
+  lng       Float?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model ServiceCategory {
+  id        String   @id @default(uuid())
+  key       String   @unique
+  label     String
+  icon      String?
+  tone      String?
+  popular   Boolean  @default(false)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  services  ProviderService[]
+  bookings  Booking[]
+  partners  PartnerCategory[]
+}
+
+model Partner {
+  id         String   @id @default(uuid())
+  name       String
+  phone      String?
+  email      String?
+  status     String   @default("active")
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+  categories PartnerCategory[]
+  kyc        PartnerKyc?
+  bank       PartnerBank?
+}
+
+model PartnerCategory {
+  id              String          @id @default(uuid())
+  partnerId       String
+  partner         Partner         @relation(fields: [partnerId], references: [id])
+  serviceCategoryId String
+  serviceCategory ServiceCategory @relation(fields: [serviceCategoryId], references: [id])
+}
+
+model PartnerKyc {
+  id         String  @id @default(uuid())
+  partnerId  String  @unique
+  partner    Partner @relation(fields: [partnerId], references: [id])
+  idType     String?
+  idNumber   String?
+  status     String  @default("pending")
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+}
+
+model PartnerBank {
+  id          String  @id @default(uuid())
+  partnerId   String  @unique
+  partner     Partner @relation(fields: [partnerId], references: [id])
+  accountName String?
+  accountNo   String?
+  ifsc        String?
+  bankName    String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model ServiceProvider {
+  id             String   @id @default(uuid())
+  userId         String   @unique
+  user           User     @relation(fields: [userId], references: [id])
+  displayName    String
+  bio            String?
+  ratingAvg      Float    @default(0)
+  ratingCount    Int      @default(0)
+  isVerified     Boolean  @default(false)
+  serviceRadiusKm Float   @default(5)
+  lat            Float?
+  lng            Float?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+  services       ProviderService[]
+  bookings       Booking[]        @relation("ProviderBookings")
+  subscriptions  Subscription[]
+  boosts         Boost[]
+}
+
+model ProviderService {
+  id          String          @id @default(uuid())
+  providerId  String
+  provider    ServiceProvider @relation(fields: [providerId], references: [id])
+  categoryId  String
+  category    ServiceCategory @relation(fields: [categoryId], references: [id])
+  priceMin    Int?
+  priceMax    Int?
+}
+
+model Booking {
+  id           String          @id @default(uuid())
+  userId       String
+  user         User            @relation("UserBookings", fields: [userId], references: [id])
+  providerId   String
+  provider     ServiceProvider @relation("ProviderBookings", fields: [providerId], references: [id])
+  categoryId   String
+  category     ServiceCategory @relation(fields: [categoryId], references: [id])
+  scheduledFor DateTime?
+  status       String          @default("requested")
+  address      String?
+  lat          Float?
+  lng          Float?
+  priceQuoted  Int?
+  createdAt    DateTime        @default(now())
+  updatedAt    DateTime        @updatedAt
+  payment      Payment?
+  review       Review?
+  messages     ChatMessage[]
+}
+
+model Review {
+  id        String  @id @default(uuid())
+  bookingId String  @unique
+  booking   Booking @relation(fields: [bookingId], references: [id])
+  rating    Int
+  comment   String?
+  createdAt DateTime @default(now())
+}
+
+model Subscription {
+  id          String          @id @default(uuid())
+  providerId  String
+  provider    ServiceProvider @relation(fields: [providerId], references: [id])
+  plan        String
+  status      String          @default("active")
+  expiresAt   DateTime
+  createdAt   DateTime        @default(now())
+}
+
+model Boost {
+  id          String          @id @default(uuid())
+  providerId  String
+  provider    ServiceProvider @relation(fields: [providerId], references: [id])
+  startAt     DateTime
+  endAt       DateTime
+  active      Boolean         @default(true)
+}
+
+model Payment {
+  id          String   @id @default(uuid())
+  bookingId   String   @unique
+  booking     Booking  @relation(fields: [bookingId], references: [id])
+  amount      Int
+  currency    String   @default("INR")
+  status      String   @default("pending")
+  providerRef String?
+  createdAt   DateTime @default(now())
+}
+
+model ChatMessage {
+  id           String   @id @default(uuid())
+  bookingId    String
+  booking      Booking  @relation(fields: [bookingId], references: [id])
+  senderUserId String
+  message      String
+  createdAt    DateTime @default(now())
+}
+
+

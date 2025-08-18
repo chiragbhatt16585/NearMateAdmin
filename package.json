@@ -1,0 +1,20 @@
+{
+  "name": "nearmate",
+  "private": true,
+  "version": "0.1.0",
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "dev": "npm -w apps/api run start:dev",
+    "build": "npm -w apps/api run build",
+    "start": "npm -w apps/api run start:prod",
+    "db:up": "docker compose up -d",
+    "db:down": "docker compose down -v",
+    "db:ps": "docker compose ps",
+    "db:logs": "docker compose logs -f | cat"
+  }
+}
+
+
