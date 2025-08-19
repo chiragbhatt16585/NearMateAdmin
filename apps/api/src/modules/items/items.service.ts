@@ -8,7 +8,7 @@ export class ItemsService {
   list(params: { search?: string; skip?: number; take?: number }) {
     const { search, skip = 0, take = 20 } = params;
     return this.prisma.item.findMany({
-      where: search ? { name: { contains: search, mode: 'insensitive' } } : undefined,
+      where: search ? { name: { contains: search } } : undefined,
       orderBy: { createdAt: 'desc' },
       skip,
       take,

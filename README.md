@@ -2,7 +2,7 @@
 
 Admin panel and API monorepo for NearMate. This repo contains:
 
-- `apps/api`: NestJS + Fastify API with Prisma (PostgreSQL)
+- `apps/api`: NestJS + Fastify API with Prisma (MySQL)
 - `apps/web`: React (Vite + Tailwind) Admin UI
 
 
@@ -10,15 +10,15 @@ Admin panel and API monorepo for NearMate. This repo contains:
 
 - Node.js 20+
 - npm 9+
-- Docker Desktop (for PostgreSQL via docker-compose)
+- Docker Desktop (for MySQL via docker-compose)
 
 
 ## Ports
 
 - API: `4000`
 - Web: `5173`
-- PostgreSQL: `5432`
-- pgAdmin: `5050`
+- MySQL: `3306`
+- Adminer: `8080`
 
 
 ## Quick Start
@@ -29,7 +29,7 @@ Admin panel and API monorepo for NearMate. This repo contains:
 npm install
 ```
 
-2) Start the database (Postgres + pgAdmin)
+2) Start the database (MySQL + Adminer)
 
 ```bash
 npm run db:up
@@ -93,7 +93,7 @@ NearMateWeb/
   apps/
     api/        # NestJS API (Prisma, Auth, Categories, Items, Users)
     web/        # React Admin (Vite + Tailwind)
-  docker-compose.yml  # Postgres + pgAdmin
+  docker-compose.yml  # MySQL + Adminer
   package.json        # Root scripts and npm workspaces
 ```
 
@@ -104,13 +104,13 @@ NearMateWeb/
 
 `docker-compose.yml` starts:
 
-- Postgres 16 (user: `app`, password: `app`, db: `nearmateadmin`)
-- pgAdmin 4 (email: `admin@example.com`, password: `admin123`)
+- MySQL 8.0 (user: `app`, password: `app`, db: `nearmateadmin`)
+- Adminer (web DB UI) at `http://localhost:8080`
 
-Connect using a GUI or `psql`:
+Connect using a GUI or `mysql`:
 
 - Host: `localhost`
-- Port: `5432`
+- Port: `3306`
 - User: `app`
 - Password: `app`
 - Database: `nearmateadmin`
@@ -174,56 +174,32 @@ Protected endpoints (examples):
 - `POST /api/v1/items`
 
 
-## Backups and Restore (PostgreSQL)
+## Backups and Restore (MySQL)
 
-The database runs inside the `nearmate-postgres` container.
+The database runs inside the `nearmate-mysql` container.
 
-### Create a backup (custom dump)
+### Create a backup (SQL dump)
 
 ```bash
-# Inside container to /tmp/backup.dump
-docker exec -e PGUSER=app -e PGPASSWORD=app -i nearmate-postgres \
-  pg_dump -Fc -d nearmateadmin -f /tmp/backup.dump
-
-# Copy to host
-docker cp nearmate-postgres:/tmp/backup.dump ./backup.dump
+# Dump the database to a file on the host
+docker exec -i nearmate-mysql mysqldump -u root -proot nearmateadmin > backup.sql
 ```
 
-### Restore entire database from a custom dump
+### Restore entire database from a dump
 
 ```bash
-# Copy dump into container
-docker cp ./backup.dump nearmate-postgres:/tmp/backup.dump
-
-# Restore into existing DB (drops/recreates objects as needed)
-docker exec -e PGUSER=app -e PGPASSWORD=app -i nearmate-postgres \
-  pg_restore --clean --no-owner --no-privileges -d nearmateadmin /tmp/backup.dump
+# Restore from backup.sql into the running MySQL container
+docker exec -i nearmate-mysql mysql -u root -proot nearmateadmin < backup.sql
 ```
 
-### Restore only ServiceCategory (categories) from a dump
-
-Option A: Restore only table data directly (if roles/ownership allow):
+### Dump/restore only ServiceCategory (categories) table data
 
 ```bash
-docker exec -e PGUSER=app -e PGPASSWORD=app -i nearmate-postgres \
-  pg_restore --data-only --no-owner --no-privileges \
-  --table=public."ServiceCategory" \
-  -d nearmateadmin /tmp/backup.dump
-```
+# Dump only data for the ServiceCategory table (no DDL)
+docker exec -i nearmate-mysql mysqldump -u root -proot --no-create-info nearmateadmin ServiceCategory > ServiceCategory.sql
 
-Option B: When direct restore fails, use a temporary DB:
-
-```bash
-# 1) Create temp DB and restore dump
-docker exec -e PGUSER=app -e PGPASSWORD=app -i nearmate-postgres \
-  bash -lc "createdb -E UTF8 nearmateimport || true; pg_restore --no-owner --no-privileges -d nearmateimport /tmp/backup.dump"
-
-# 2) Copy categories from temp DB to main DB
-docker exec -e PGUSER=app -e PGPASSWORD=app -i nearmate-postgres \
-  bash -lc "pg_dump -a -t 'public."ServiceCategory"' nearmateimport | psql -d nearmateadmin"
-
-# 3) (Optional) Drop the temp DB
-docker exec -e PGUSER=app -e PGPASSWORD=app -i nearmate-postgres dropdb nearmateimport
+# Restore only the dumped table data
+docker exec -i nearmate-mysql mysql -u root -proot nearmateadmin < ServiceCategory.sql
 ```
 
 
@@ -239,7 +215,10 @@ npm start
 
 # Database (docker compose)
 npm run db:up
+# Safe down (keeps volume):
 npm run db:down
+# Reset (DANGER: deletes volume/data):
+npm run db:reset
 npm run db:ps
 npm run db:logs
 ```
@@ -265,7 +244,7 @@ npm -w apps/web run preview
 
 - Database connection issues:
   - Ensure Docker is running and `npm run db:up` succeeded.
-  - Verify `DATABASE_URL` in `apps/api/.env` matches docker-compose (`postgresql://app:app@localhost:5432/nearmateadmin?schema=public`).
+  - Verify `DATABASE_URL` in `apps/api/.env` matches docker-compose (`mysql://app:app@localhost:3306/nearmateadmin`).
 
 - Reset local DB (DANGER: deletes data):
   - `npm run db:down` then `npm run db:up` and re-run Prisma migrate + seed.

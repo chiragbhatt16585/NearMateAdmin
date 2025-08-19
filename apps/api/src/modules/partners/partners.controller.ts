@@ -1,4 +1,4 @@
-import { Body, Controller, Delete, Get, Param, Patch, Post, Query, UseGuards, BadRequestException } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Param, Patch, Post, Query, UseGuards, BadRequestException, ConflictException } from '@nestjs/common';
 import { PartnersService } from './partners.service';
 import { JwtAuthGuard } from '../auth/auth.guard';
 
@@ -13,16 +13,32 @@ export class PartnersController {
   }
 
   @Post()
-  create(
+  async create(
     @Body()
-    body: { name: string; phone?: string; email?: string; categoryKeys?: string[] },
+    body: {
+      name: string;
+      phone?: string;
+      email?: string;
+      categoryKeys?: string[];
+      kyc?: { idType?: string | null; idNumber?: string | null; status?: string | null };
+      bank?: { accountName?: string | null; accountNo?: string | null; ifsc?: string | null; bankName?: string | null };
+    },
   ) {
     const name = body?.name?.trim();
     if (!name) throw new BadRequestException('Name is required');
     const phone = body?.phone?.trim() || undefined;
     const email = body?.email?.trim() || undefined;
     const categoryKeys = Array.isArray(body?.categoryKeys) ? body.categoryKeys : [];
-    return this.partners.create({ name, phone, email, categoryKeys });
+    const kyc = typeof body?.kyc === 'object' && body.kyc ? body.kyc : undefined;
+    const bank = typeof body?.bank === 'object' && body.bank ? body.bank : undefined;
+    try {
+      return await this.partners.create({ name, phone, email, categoryKeys, kyc, bank });
+    } catch (e: any) {
+      if (e?.code === 'P2002') {
+        throw new ConflictException('Email or phone already exists');
+      }
+      throw e;
+    }
   }
 
   @Get(':id')
@@ -31,11 +47,26 @@ export class PartnersController {
   }
 
   @Patch(':id')
-  update(
+  async update(
     @Param('id') id: string,
-    @Body() body: { name?: string; phone?: string | null; email?: string | null; categoryKeys?: string[] },
+    @Body()
+    body: {
+      name?: string;
+      phone?: string | null;
+      email?: string | null;
+      categoryKeys?: string[];
+      kyc?: { idType?: string | null; idNumber?: string | null; status?: string | null };
+      bank?: { accountName?: string | null; accountNo?: string | null; ifsc?: string | null; bankName?: string | null };
+    },
   ) {
-    const data: { name?: string; phone?: string | null; email?: string | null; categoryKeys?: string[] } = {};
+    const data: {
+      name?: string;
+      phone?: string | null;
+      email?: string | null;
+      categoryKeys?: string[];
+      kyc?: { idType?: string | null; idNumber?: string | null; status?: string | null };
+      bank?: { accountName?: string | null; accountNo?: string | null; ifsc?: string | null; bankName?: string | null };
+    } = {};
     if (typeof body?.name === 'string') {
       const v = body.name.trim();
       if (!v) throw new BadRequestException('Name cannot be empty');
@@ -46,7 +77,16 @@ export class PartnersController {
     if (typeof body?.email === 'string') data.email = body.email.trim();
     if (body?.email === null) data.email = null;
     if (Array.isArray(body?.categoryKeys)) data.categoryKeys = body.categoryKeys;
-    return this.partners.update(id, data);
+    if (typeof body?.kyc === 'object') data.kyc = body.kyc as any;
+    if (typeof body?.bank === 'object') data.bank = body.bank as any;
+    try {
+      return await this.partners.update(id, data);
+    } catch (e: any) {
+      if (e?.code === 'P2002') {
+        throw new ConflictException('Email or phone already exists');
+      }
+      throw e;
+    }
   }
 
   @Delete(':id')

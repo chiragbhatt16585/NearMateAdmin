@@ -3,8 +3,9 @@ generator client {
 }
 
 datasource db {
-  provider = "postgresql"
+  provider = "mysql"
   url      = env("DATABASE_URL")
+  shadowDatabaseUrl = env("SHADOW_DATABASE_URL")
 }
 
 model User {
@@ -82,8 +83,9 @@ model ServiceCategory {
 model Partner {
   id         String   @id @default(uuid())
   name       String
-  phone      String?
-  email      String?
+  phone      String?  @unique
+  email      String?  @unique
+  loginId    String?  @unique
   status     String   @default("active")
   createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt

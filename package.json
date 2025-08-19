@@ -11,7 +11,8 @@
     "build": "npm -w apps/api run build",
     "start": "npm -w apps/api run start:prod",
     "db:up": "docker compose up -d",
-    "db:down": "docker compose down -v",
+    "db:down": "docker compose down",
+    "db:reset": "docker compose down -v && docker compose up -d",
     "db:ps": "docker compose ps",
     "db:logs": "docker compose logs -f | cat"
   }

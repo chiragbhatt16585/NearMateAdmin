@@ -1,16 +1,29 @@
 import React from 'react';
-import { PlusIcon, PencilSquareIcon, TrashIcon, MagnifyingGlassIcon } from '@heroicons/react/24/outline';
+import { PlusIcon, PencilSquareIcon, TrashIcon, MagnifyingGlassIcon, IdentificationIcon, BanknotesIcon } from '@heroicons/react/24/outline';
 import PortalModal from '../common/PortalModal';
 
 type PartnersProps = { token: string };
 
+type PartnerRow = {
+	id: string;
+	name: string;
+	phone: string;
+	email: string;
+	loginId?: string;
+	kyc?: { idType?: string; idNumber?: string; status?: string };
+	bank?: { accountName?: string; accountNo?: string; ifsc?: string; bankName?: string };
+	categoryKeys: string[];
+};
+
 const Partners: React.FC<PartnersProps> = ({ token }) => {
 	const [cats, setCats] = React.useState<any[]>([]);
-	const [partners, setPartners] = React.useState<any[]>([]);
+	const [partners, setPartners] = React.useState<PartnerRow[]>([]);
 	const [isAddOpen, setIsAddOpen] = React.useState(false);
 	const [isEditOpen, setIsEditOpen] = React.useState(false);
 	const [toast, setToast] = React.useState<string | null>(null);
 	const [query, setQuery] = React.useState('');
+	const [viewKycPartner, setViewKycPartner] = React.useState<PartnerRow | null>(null);
+	const [viewBankPartner, setViewBankPartner] = React.useState<PartnerRow | null>(null);
 
 	// Add form
 	const [pName, setPName] = React.useState('');
@@ -45,6 +58,9 @@ const Partners: React.FC<PartnersProps> = ({ token }) => {
 						name: r.name,
 						phone: r.phone || '',
 						email: r.email || '',
+						loginId: r.loginId || '',
+						kyc: r.kyc || {},
+						bank: r.bank || {},
 						categoryKeys: Array.isArray(r.categories)
 							? r.categories
 								.map((pc: any) => pc?.serviceCategory?.key)
@@ -65,7 +81,7 @@ const Partners: React.FC<PartnersProps> = ({ token }) => {
 
 	const filtered = partners.filter(p => (p.name + ' ' + p.email + ' ' + p.phone).toLowerCase().includes(query.toLowerCase().trim()));
 
-	function startEdit(p: any) {
+	function startEdit(p: PartnerRow) {
 		setEditingId(p.id);
 		setEName(p.name);
 		setEPhone(p.phone || '');
@@ -155,20 +171,47 @@ const Partners: React.FC<PartnersProps> = ({ token }) => {
 								<th className="px-3 py-2 text-left w-16">#</th>
 								<th className="px-3 py-2 text-left">Name</th>
 								<th className="px-3 py-2 text-left">Categories</th>
-								<th className="px-3 py-2 text-left">Contact</th>
+								<th className="px-3 py-2 text-left w-28">Login ID</th>
+								<th className="px-3 py-2 text-left">Phone</th>
+								<th className="px-3 py-2 text-left">Email</th>
+								<th className="px-3 py-2 text-left w-28">KYC</th>
+								<th className="px-3 py-2 text-left w-28">Bank</th>
 								<th className="px-3 py-2 text-right w-40">Actions</th>
 							</tr>
 						</thead>
 						<tbody className="divide-y">
 							{filtered.length === 0 ? (
-								<tr><td className="px-3 py-6 text-center text-gray-500" colSpan={5}>No partners</td></tr>
+								<tr><td className="px-3 py-6 text-center text-gray-500" colSpan={9}>No partners</td></tr>
 							) : (
 								filtered.map((p, idx) => (
 									<tr key={p.id} className="hover:bg-gray-50">
 										<td className="px-3 py-2">{idx + 1}</td>
 										<td className="px-3 py-2 font-medium">{p.name}</td>
 										<td className="px-3 py-2 text-gray-700">{p.categoryKeys.map((k: string) => keyToLabel(k)).join(', ')}</td>
-										<td className="px-3 py-2 text-gray-500">{[p.phone, p.email].filter(Boolean).join(' • ') || '—'}</td>
+										<td className="px-3 py-2 text-gray-900 font-mono">{p.loginId || '—'}</td>
+										<td className="px-3 py-2 text-gray-500">{p.phone || '—'}</td>
+										<td className="px-3 py-2 text-gray-500">{p.email || '—'}</td>
+										<td className="px-3 py-2">
+											<button type="button" onClick={async ()=>{
+												try {
+													const res = await fetch(`/api/v1/partners/${p.id}`, { headers: { Authorization: `Bearer ${token}` } });
+													if (res.ok) setViewKycPartner(await res.json()); else setViewKycPartner(p);
+												} catch { setViewKycPartner(p); }
+											}} className="inline-flex items-center gap-1 hover:underline">
+												<IdentificationIcon className="h-4 w-4" />
+												{p?.kyc?.status ? (p.kyc.status.charAt(0).toUpperCase() + p.kyc.status.slice(1)) : '—'}
+											</button>
+										</td>
+										<td className="px-3 py-2">
+											<button type="button" onClick={async ()=>{
+												try {
+													const res = await fetch(`/api/v1/partners/${p.id}`, { headers: { Authorization: `Bearer ${token}` } });
+													if (res.ok) setViewBankPartner(await res.json()); else setViewBankPartner(p);
+												} catch { setViewBankPartner(p); }
+											}} className="inline-flex items-center gap-1 hover:underline">
+												<BanknotesIcon className="h-4 w-4" /> {p?.bank?.accountNo ? 'Yes' : '—'}
+											</button>
+										</td>
 										<td className="px-3 py-2">
 											<div className="flex items-center justify-end gap-2">
 												<button onClick={() => startEdit(p)} className="inline-flex items-center gap-1 text-blue-700 hover:bg-blue-50 border border-blue-200 rounded px-2 py-1"><PencilSquareIcon className="h-4 w-4" /> Edit</button>
@@ -249,6 +292,27 @@ const Partners: React.FC<PartnersProps> = ({ token }) => {
 							<button onClick={()=>setIsEditOpen(false)} className="px-3 py-2 rounded border">Cancel</button>
 							<button onClick={saveEdit} className="px-3 py-2 rounded bg-black text-white">Save</button>
 						</div>
+					</div>
+				</PortalModal>
+			)}
+
+			{viewKycPartner && (
+				<PortalModal title={`KYC — ${viewKycPartner.name}`} onClose={()=>setViewKycPartner(null)} maxWidthClass="max-w-md">
+					<div className="space-y-2 text-sm">
+						<div className="flex justify-between"><span className="text-gray-600">ID Type</span><span className="font-medium">{viewKycPartner?.kyc?.idType || '—'}</span></div>
+						<div className="flex justify-between"><span className="text-gray-600">ID Number</span><span className="font-medium">{viewKycPartner?.kyc?.idNumber || '—'}</span></div>
+						<div className="flex justify-between"><span className="text-gray-600">Status</span><span className="font-medium">{viewKycPartner?.kyc?.status ? (viewKycPartner.kyc.status.charAt(0).toUpperCase() + viewKycPartner.kyc.status.slice(1)) : '—'}</span></div>
+					</div>
+				</PortalModal>
+			)}
+
+			{viewBankPartner && (
+				<PortalModal title={`Bank — ${viewBankPartner.name}`} onClose={()=>setViewBankPartner(null)} maxWidthClass="max-w-md">
+					<div className="space-y-2 text-sm">
+						<div className="flex justify-between"><span className="text-gray-600">Account Name</span><span className="font-medium">{viewBankPartner?.bank?.accountName || '—'}</span></div>
+						<div className="flex justify-between"><span className="text-gray-600">Account Number</span><span className="font-medium">{viewBankPartner?.bank?.accountNo || '—'}</span></div>
+						<div className="flex justify-between"><span className="text-gray-600">IFSC</span><span className="font-medium">{viewBankPartner?.bank?.ifsc || '—'}</span></div>
+						<div className="flex justify-between"><span className="text-gray-600">Bank Name</span><span className="font-medium">{viewBankPartner?.bank?.bankName || '—'}</span></div>
 					</div>
 				</PortalModal>
 			)}
