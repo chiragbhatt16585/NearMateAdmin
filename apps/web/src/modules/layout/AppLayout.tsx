@@ -15,6 +15,7 @@ const AppLayout: React.FC<AppLayoutProps> = ({ children, onLogout }) => {
 		{ to: '/categories', label: 'Categories', icon: TagIcon },
 		{ to: '/items', label: 'Items', icon: RectangleStackIcon },
 		{ to: '/partners', label: 'Partners', icon: UserGroupIcon },
+		{ to: '/users', label: 'Users', icon: UserGroupIcon },
 	];
 	return (
 		<div className="min-h-screen bg-gray-50 text-gray-900 flex">

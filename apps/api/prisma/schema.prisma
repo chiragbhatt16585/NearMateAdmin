@@ -90,8 +90,25 @@ model Partner {
   createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt
   categories PartnerCategory[]
-  kyc        PartnerKyc?
+  kycs       PartnerKyc[]
   bank       PartnerBank?
+  ratings    PartnerRating[]
+
+  // Admin-managed settings for provider management
+  serviceRadiusKm Float    @default(5)
+  isAvailable     Boolean  @default(true)
+  pricingType     String?
+  priceMin        Int?
+  priceMax        Int?
+  plan            String?
+  planStatus      String?  @default("active")
+  boostActive     Boolean  @default(false)
+  boostStart      DateTime?
+  boostEnd        DateTime?
+
+  // Rating fields
+  ratingAvg       Float    @default(0)
+  ratingCount     Int      @default(0)
 }
 
 model PartnerCategory {
@@ -103,12 +120,13 @@ model PartnerCategory {
 }
 
 model PartnerKyc {
-  id         String  @id @default(uuid())
-  partnerId  String  @unique
-  partner    Partner @relation(fields: [partnerId], references: [id])
+  id         String   @id @default(uuid())
+  partnerId  String
+  partner    Partner  @relation(fields: [partnerId], references: [id])
   idType     String?
   idNumber   String?
-  status     String  @default("pending")
+  docUrl     String?
+  status     String   @default("pending")
   createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt
 }
@@ -123,6 +141,22 @@ model PartnerBank {
   bankName    String?
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
+}
+
+model PartnerRating {
+  id         String   @id @default(uuid())
+  partnerId  String
+  partner    Partner  @relation(fields: [partnerId], references: [id])
+  bookingId  String   @unique
+  booking    Booking  @relation(fields: [bookingId], references: [id])
+  rating     Int      // 1-5 stars
+  comment    String?
+  status     String   @default("active") // active, hidden, flagged
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@index([partnerId])
+  @@index([rating])
 }
 
 model ServiceProvider {
@@ -174,6 +208,7 @@ model Booking {
   payment      Payment?
   review       Review?
   messages     ChatMessage[]
+  partnerRating PartnerRating?
 }
 
 model Review {
