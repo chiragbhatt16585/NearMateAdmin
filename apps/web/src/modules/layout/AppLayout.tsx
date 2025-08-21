@@ -1,7 +1,7 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
 import classNames from 'classnames';
-import { Bars3Icon, Squares2X2Icon, TagIcon, RectangleStackIcon, ArrowRightOnRectangleIcon, UserGroupIcon } from '@heroicons/react/24/outline';
+import { Bars3Icon, Squares2X2Icon, TagIcon, RectangleStackIcon, ArrowRightOnRectangleIcon, UserGroupIcon, UsersIcon } from '@heroicons/react/24/outline';
 
 type AppLayoutProps = {
 	children: React.ReactNode;
@@ -16,6 +16,7 @@ const AppLayout: React.FC<AppLayoutProps> = ({ children, onLogout }) => {
 		{ to: '/items', label: 'Items', icon: RectangleStackIcon },
 		{ to: '/partners', label: 'Partners', icon: UserGroupIcon },
 		{ to: '/users', label: 'Users', icon: UserGroupIcon },
+		{ to: '/end-users', label: 'End Users', icon: UsersIcon },
 	];
 	return (
 		<div className="min-h-screen bg-gray-50 text-gray-900 flex">

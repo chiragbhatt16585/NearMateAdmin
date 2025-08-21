@@ -3,36 +3,38 @@ generator client {
 }
 
 datasource db {
-  provider = "mysql"
-  url      = env("DATABASE_URL")
+  provider          = "mysql"
+  url               = env("DATABASE_URL")
   shadowDatabaseUrl = env("SHADOW_DATABASE_URL")
 }
 
 model User {
-  id             String   @id @default(uuid())
-  email          String   @unique
+  id             String           @id @default(uuid())
+  email          String           @unique
   name           String
   hashedPassword String
-  role           String   @default("admin")
-  status         String   @default("active")
-  createdAt      DateTime @default(now())
-  updatedAt      DateTime @updatedAt
+  role           String           @default("admin")
+  status         String           @default("active")
+  createdAt      DateTime         @default(now())
+  updatedAt      DateTime         @updatedAt
+  bookings       Booking[]        @relation("UserBookings")
   refreshTokens  RefreshToken[]
-  profile        UserProfile?
   provider       ServiceProvider?
-  bookings       Booking[]       @relation("UserBookings")
+  profile        UserProfile?
 }
 
 model RefreshToken {
-  id         String   @id @default(uuid())
-  userId     String
-  user       User     @relation(fields: [userId], references: [id])
+  id          String    @id @default(uuid())
+  userId      String
   hashedToken String
-  userAgent  String?
-  ip         String?
-  revokedAt  DateTime?
-  expiresAt  DateTime
-  createdAt  DateTime @default(now())
+  userAgent   String?
+  ip          String?
+  revokedAt   DateTime?
+  expiresAt   DateTime
+  createdAt   DateTime  @default(now())
+  user        User      @relation(fields: [userId], references: [id])
+
+  @@index([userId], map: "RefreshToken_userId_fkey")
 }
 
 model AuditLog {
@@ -57,146 +59,137 @@ model Item {
 model UserProfile {
   id        String   @id @default(uuid())
   userId    String   @unique
-  user      User     @relation(fields: [userId], references: [id])
   phone     String?
   address   String?
   lat       Float?
   lng       Float?
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+  user      User     @relation(fields: [userId], references: [id])
 }
 
 model ServiceCategory {
-  id        String   @id @default(uuid())
-  key       String   @unique
+  id        String            @id @default(uuid())
+  key       String            @unique
   label     String
   icon      String?
   tone      String?
-  popular   Boolean  @default(false)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-  services  ProviderService[]
+  popular   Boolean           @default(false)
+  createdAt DateTime          @default(now())
+  updatedAt DateTime          @updatedAt
   bookings  Booking[]
   partners  PartnerCategory[]
+  services  ProviderService[]
+  
+  // End User Relations
+  endUserBookings EndUserBooking[]
 }
 
 model Partner {
-  id         String   @id @default(uuid())
+  id         String            @id @default(uuid())
   name       String
-  phone      String?  @unique
-  email      String?  @unique
-  loginId    String?  @unique
-  status     String   @default("active")
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @updatedAt
-  categories PartnerCategory[]
-  kycs       PartnerKyc[]
+  phone      String?           @unique
+  email      String?           @unique
+  status     String            @default("active")
+  createdAt  DateTime          @default(now())
+  updatedAt  DateTime          @updatedAt
+  
+  // Additional fields that the API expects
+  loginId    String?
+  serviceRadiusKm Float?       @default(5)
+  isAvailable Boolean?         @default(true)
+  pricingType String?          @default("hourly")
+  priceMin   Int?
+  priceMax   Int?
+  plan       String?
+  planStatus String?           @default("active")
+  boostActive Boolean?         @default(false)
+  boostStart DateTime?
+  boostEnd   DateTime?
+  ratingAvg  Float?            @default(0)
+  ratingCount Int?             @default(0)
+  
   bank       PartnerBank?
-  ratings    PartnerRating[]
-
-  // Admin-managed settings for provider management
-  serviceRadiusKm Float    @default(5)
-  isAvailable     Boolean  @default(true)
-  pricingType     String?
-  priceMin        Int?
-  priceMax        Int?
-  plan            String?
-  planStatus      String?  @default("active")
-  boostActive     Boolean  @default(false)
-  boostStart      DateTime?
-  boostEnd        DateTime?
-
-  // Rating fields
-  ratingAvg       Float    @default(0)
-  ratingCount     Int      @default(0)
+  categories PartnerCategory[]
+  kycs       PartnerKyc?
+  
+  // End User Relations
+  endUserBookings EndUserBooking[]
+  endUserReviews  EndUserReview[]
 }
 
 model PartnerCategory {
-  id              String          @id @default(uuid())
-  partnerId       String
-  partner         Partner         @relation(fields: [partnerId], references: [id])
+  id                String          @id @default(uuid())
+  partnerId         String
   serviceCategoryId String
-  serviceCategory ServiceCategory @relation(fields: [serviceCategoryId], references: [id])
+  partner           Partner         @relation(fields: [partnerId], references: [id])
+  serviceCategory   ServiceCategory @relation(fields: [serviceCategoryId], references: [id])
+
+  @@index([partnerId], map: "PartnerCategory_partnerId_fkey")
+  @@index([serviceCategoryId], map: "PartnerCategory_serviceCategoryId_fkey")
 }
 
 model PartnerKyc {
-  id         String   @id @default(uuid())
-  partnerId  String
-  partner    Partner  @relation(fields: [partnerId], references: [id])
-  idType     String?
-  idNumber   String?
-  docUrl     String?
-  status     String   @default("pending")
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @updatedAt
+  id        String   @id @default(uuid())
+  partnerId String   @unique
+  idType    String?
+  idNumber  String?
+  status    String   @default("pending")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  partner   Partner  @relation(fields: [partnerId], references: [id])
 }
 
 model PartnerBank {
-  id          String  @id @default(uuid())
-  partnerId   String  @unique
-  partner     Partner @relation(fields: [partnerId], references: [id])
+  id          String   @id @default(uuid())
+  partnerId   String   @unique
   accountName String?
   accountNo   String?
   ifsc        String?
   bankName    String?
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
-}
-
-model PartnerRating {
-  id         String   @id @default(uuid())
-  partnerId  String
-  partner    Partner  @relation(fields: [partnerId], references: [id])
-  bookingId  String   @unique
-  booking    Booking  @relation(fields: [bookingId], references: [id])
-  rating     Int      // 1-5 stars
-  comment    String?
-  status     String   @default("active") // active, hidden, flagged
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @updatedAt
-
-  @@index([partnerId])
-  @@index([rating])
+  partner     Partner  @relation(fields: [partnerId], references: [id])
 }
 
 model ServiceProvider {
-  id             String   @id @default(uuid())
-  userId         String   @unique
-  user           User     @relation(fields: [userId], references: [id])
-  displayName    String
-  bio            String?
-  ratingAvg      Float    @default(0)
-  ratingCount    Int      @default(0)
-  isVerified     Boolean  @default(false)
-  serviceRadiusKm Float   @default(5)
-  lat            Float?
-  lng            Float?
-  createdAt      DateTime @default(now())
-  updatedAt      DateTime @updatedAt
-  services       ProviderService[]
-  bookings       Booking[]        @relation("ProviderBookings")
-  subscriptions  Subscription[]
-  boosts         Boost[]
+  id              String            @id @default(uuid())
+  userId          String            @unique
+  displayName     String
+  bio             String?
+  ratingAvg       Float             @default(0)
+  ratingCount     Int               @default(0)
+  isVerified      Boolean           @default(false)
+  serviceRadiusKm Float             @default(5)
+  lat             Float?
+  lng             Float?
+  createdAt       DateTime          @default(now())
+  updatedAt       DateTime          @updatedAt
+  bookings        Booking[]         @relation("ProviderBookings")
+  boosts          Boost[]
+  services        ProviderService[]
+  user            User              @relation(fields: [userId], references: [id])
+  subscriptions   Subscription[]
 }
 
 model ProviderService {
-  id          String          @id @default(uuid())
-  providerId  String
-  provider    ServiceProvider @relation(fields: [providerId], references: [id])
-  categoryId  String
-  category    ServiceCategory @relation(fields: [categoryId], references: [id])
-  priceMin    Int?
-  priceMax    Int?
+  id         String          @id @default(uuid())
+  providerId String
+  categoryId String
+  priceMin   Int?
+  priceMax   Int?
+  category   ServiceCategory @relation(fields: [categoryId], references: [id])
+  provider   ServiceProvider @relation(fields: [providerId], references: [id])
+
+  @@index([categoryId], map: "ProviderService_categoryId_fkey")
+  @@index([providerId], map: "ProviderService_providerId_fkey")
 }
 
 model Booking {
   id           String          @id @default(uuid())
   userId       String
-  user         User            @relation("UserBookings", fields: [userId], references: [id])
   providerId   String
-  provider     ServiceProvider @relation("ProviderBookings", fields: [providerId], references: [id])
   categoryId   String
-  category     ServiceCategory @relation(fields: [categoryId], references: [id])
   scheduledFor DateTime?
   status       String          @default("requested")
   address      String?
@@ -205,58 +198,190 @@ model Booking {
   priceQuoted  Int?
   createdAt    DateTime        @default(now())
   updatedAt    DateTime        @updatedAt
+  category     ServiceCategory @relation(fields: [categoryId], references: [id])
+  provider     ServiceProvider @relation("ProviderBookings", fields: [providerId], references: [id])
+  user         User            @relation("UserBookings", fields: [userId], references: [id])
+  messages     ChatMessage[]
   payment      Payment?
   review       Review?
-  messages     ChatMessage[]
-  partnerRating PartnerRating?
+
+  @@index([categoryId], map: "Booking_categoryId_fkey")
+  @@index([providerId], map: "Booking_providerId_fkey")
+  @@index([userId], map: "Booking_userId_fkey")
 }
 
 model Review {
-  id        String  @id @default(uuid())
-  bookingId String  @unique
-  booking   Booking @relation(fields: [bookingId], references: [id])
+  id        String   @id @default(uuid())
+  bookingId String   @unique
   rating    Int
   comment   String?
   createdAt DateTime @default(now())
+  booking   Booking  @relation(fields: [bookingId], references: [id])
 }
 
 model Subscription {
-  id          String          @id @default(uuid())
-  providerId  String
-  provider    ServiceProvider @relation(fields: [providerId], references: [id])
-  plan        String
-  status      String          @default("active")
-  expiresAt   DateTime
-  createdAt   DateTime        @default(now())
+  id         String          @id @default(uuid())
+  providerId String
+  plan       String
+  status     String          @default("active")
+  expiresAt  DateTime
+  createdAt  DateTime        @default(now())
+  provider   ServiceProvider @relation(fields: [providerId], references: [id])
+
+  @@index([providerId], map: "Subscription_providerId_fkey")
 }
 
 model Boost {
-  id          String          @id @default(uuid())
-  providerId  String
-  provider    ServiceProvider @relation(fields: [providerId], references: [id])
-  startAt     DateTime
-  endAt       DateTime
-  active      Boolean         @default(true)
+  id         String          @id @default(uuid())
+  providerId String
+  startAt    DateTime
+  endAt      DateTime
+  active     Boolean         @default(true)
+  provider   ServiceProvider @relation(fields: [providerId], references: [id])
+
+  @@index([providerId], map: "Boost_providerId_fkey")
 }
 
 model Payment {
   id          String   @id @default(uuid())
   bookingId   String   @unique
-  booking     Booking  @relation(fields: [bookingId], references: [id])
   amount      Int
   currency    String   @default("INR")
   status      String   @default("pending")
   providerRef String?
   createdAt   DateTime @default(now())
+  booking     Booking  @relation(fields: [bookingId], references: [id])
 }
 
 model ChatMessage {
   id           String   @id @default(uuid())
   bookingId    String
-  booking      Booking  @relation(fields: [bookingId], references: [id])
   senderUserId String
   message      String
   createdAt    DateTime @default(now())
+  booking      Booking  @relation(fields: [bookingId], references: [id])
+
+  @@index([bookingId], map: "ChatMessage_bookingId_fkey")
 }
 
+// End User Models
+model EndUser {
+  id           String   @id @default(uuid())
+  email        String   @unique
+  phone        String   @unique
+  name         String
+  dateOfBirth  DateTime?
+  gender       String?
+  status       String   @default("active")
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+  
+  addresses    EndUserAddress[]
+  bookings     EndUserBooking[]
+  billing      EndUserBilling[]
+  reviews      EndUserReview[]
+}
 
+model EndUserAddress {
+  id            String   @id @default(uuid())
+  endUserId     String
+  type          String   @default("home")
+  label         String
+  addressLine1  String
+  addressLine2  String?
+  city          String
+  state         String
+  postalCode    String
+  country       String   @default("India")
+  lat           Float?
+  lng           Float?
+  isDefault     Boolean  @default(false)
+  isActive      Boolean  @default(true)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  
+  endUser       EndUser  @relation(fields: [endUserId], references: [id])
+  bookings      EndUserBooking[]
+  
+  @@index([endUserId])
+}
+
+model EndUserBooking {
+  id                  String          @id @default(uuid())
+  endUserId           String
+  partnerId           String
+  categoryId          String
+  serviceDescription  String?
+  scheduledDate       DateTime?
+  scheduledTime       String?
+  status              String          @default("pending")
+  priority            String          @default("normal")
+  addressId           String?
+  customAddress       String?
+  lat                 Float?
+  lng                 Float?
+  quotedPrice         Float?
+  finalPrice          Float?
+  paymentStatus       String          @default("pending")
+  createdAt           DateTime        @default(now())
+  updatedAt           DateTime        @default(now())
+  completedAt         DateTime?
+  
+  endUser             EndUser         @relation(fields: [endUserId], references: [id])
+  partner             Partner         @relation(fields: [partnerId], references: [id])
+  category            ServiceCategory @relation(fields: [categoryId], references: [id])
+  address             EndUserAddress? @relation(fields: [addressId], references: [id])
+  billing             EndUserBilling?
+  review              EndUserReview?
+  
+  @@index([endUserId])
+  @@index([partnerId])
+  @@index([status])
+}
+
+model EndUserBilling {
+  id              String   @id @default(uuid())
+  endUserId       String
+  bookingId       String   @unique
+  amount          Float
+  currency        String   @default("INR")
+  taxAmount       Float    @default(0)
+  discountAmount  Float    @default(0)
+  finalAmount     Float
+  paymentMethod   String?
+  paymentStatus   String   @default("pending")
+  transactionId   String?
+  paidAt          DateTime?
+  invoiceNumber   String?
+  invoiceDate     DateTime?
+  dueDate         DateTime?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  
+  endUser         EndUser         @relation(fields: [endUserId], references: [id])
+  booking         EndUserBooking  @relation(fields: [bookingId], references: [id])
+  
+  @@index([endUserId])
+  @@index([paymentStatus])
+}
+
+model EndUserReview {
+  id           String   @id @default(uuid())
+  endUserId    String
+  bookingId    String   @unique
+  partnerId    String
+  rating       Int
+  comment      String?
+  isAnonymous  Boolean  @default(false)
+  status       String   @default("active")
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+  
+  endUser      EndUser         @relation(fields: [endUserId], references: [id])
+  booking      EndUserBooking  @relation(fields: [bookingId], references: [id])
+  partner      Partner         @relation(fields: [partnerId], references: [id])
+  
+  @@index([endUserId])
+  @@index([partnerId])
+  @@index([rating])
+}

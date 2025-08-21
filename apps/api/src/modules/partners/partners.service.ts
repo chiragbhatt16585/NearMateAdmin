@@ -33,11 +33,11 @@ export class PartnersService {
         categories: { include: { serviceCategory: true } },
         kycs: true,
         bank: true,
-        ratings: {
-          where: { status: 'active' },
-          orderBy: { createdAt: 'desc' },
-          take: 5, // Show last 5 ratings
-        },
+        // ratings: {
+        //   where: { status: 'active' },
+        //   orderBy: { createdAt: 'desc' },
+        //   take: 5, // Show last 5 ratings
+        // },
       },
       orderBy: { createdAt: 'desc' },
     });
@@ -108,23 +108,23 @@ export class PartnersService {
         categories: { include: { serviceCategory: true } }, 
         kycs: true, 
         bank: true,
-        ratings: {
-          where: { status: 'active' },
-          include: {
-            booking: {
-              include: {
-                user: {
-                  select: {
-                    id: true,
-                    name: true,
-                  },
-                },
-                category: true,
-              },
-            },
-          },
-          orderBy: { createdAt: 'desc' },
-        },
+        // ratings: {
+        //   where: { status: 'active' },
+        //   include: {
+        //     booking: {
+        //       include: {
+        //         user: {
+        //           select: {
+        //             id: true,
+        //             name: true,
+        //           },
+        //         },
+        //         category: true,
+        //       },
+        //     },
+        //   },
+        //   orderBy: { createdAt: 'desc' },
+        // },
       } 
     });
     if (!row) throw new NotFoundException('Partner not found');

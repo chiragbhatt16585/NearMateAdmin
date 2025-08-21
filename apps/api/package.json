@@ -11,6 +11,9 @@
     "start:prod": "NODE_ENV=production node dist/main.js",
     "prisma:generate": "prisma generate",
     "prisma:migrate": "prisma migrate dev --name init",
+    "prisma:migrate:deploy": "prisma migrate deploy",
+    "prisma:migrate:dev": "prisma migrate dev",
+    "prisma:migrate:status": "prisma migrate status",
     "prisma:studio": "prisma studio",
     "seed": "ts-node -r tsconfig-paths/register prisma/seed.ts",
     "backfill:loginId": "ts-node -r tsconfig-paths/register scripts/backfill-loginid.ts"

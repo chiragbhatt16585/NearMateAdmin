@@ -94,7 +94,8 @@ const Partners: React.FC<PartnersProps> = ({ token }) => {
 			}
 			if (cRes.ok) setCats(await cRes.json());
 			if (pRes.ok) {
-				const rows = await pRes.json();
+				const payload = await pRes.json();
+				const rows = Array.isArray(payload) ? payload : (Array.isArray((payload as any)?.data) ? (payload as any).data : []);
 				setPartners(
 					rows.map((r: any) => ({
 						id: r.id,

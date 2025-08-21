@@ -9,7 +9,7 @@ export class PartnersController {
 
   @Get()
   list(@Query('search') search?: string) {
-    return this.partners.list({ search });
+    return this.partners.list();
   }
 
   @Post()

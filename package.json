@@ -14,7 +14,10 @@
     "db:down": "docker compose down",
     "db:reset": "docker compose down -v && docker compose up -d",
     "db:ps": "docker compose ps",
-    "db:logs": "docker compose logs -f | cat"
+    "db:logs": "docker compose logs -f | cat",
+    "db:backup": "docker exec nearmate-mysql sh -c 'mysqldump -uroot -proot --databases nearmateadmin' | gzip > backups/backup-$(date +%Y%m%d-%H%M%S).sql.gz",
+    "migrate:safe": "npm run db:backup && npm -w apps/api run prisma:migrate:deploy",
+    "migrate:dev": "npm -w apps/api run prisma:migrate:dev"
   }
 }
 

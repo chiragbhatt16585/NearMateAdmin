@@ -25,9 +25,9 @@ async function main() {
     create: { name: 'John Doe', phone: '9990001111', email: 'john@example.com' },
   });
   await prisma.partnerKyc.upsert({
-    where: { partnerId: john.id },
+    where: { id: `kyc-${john.id}` },
     update: { idType: 'Aadhar Card', idNumber: 'XXXXXXXXX', status: 'verified' },
-    create: { partnerId: john.id, idType: 'Aadhar Card', idNumber: 'XXXXXXXXX', status: 'verified' },
+    create: { id: `kyc-${john.id}`, partnerId: john.id, idType: 'Aadhar Card', idNumber: 'XXXXXXXXX', status: 'verified' },
   });
   await prisma.partnerBank.upsert({
     where: { partnerId: john.id },
@@ -41,9 +41,9 @@ async function main() {
     create: { name: 'Jane Roe', phone: '9990002222', email: 'jane@example.com' },
   });
   await prisma.partnerKyc.upsert({
-    where: { partnerId: jane.id },
+    where: { id: `kyc-${jane.id}` },
     update: { idType: 'Pan Card', idNumber: 'XXXXXXX', status: 'pending' },
-    create: { partnerId: jane.id, idType: 'Pan Card', idNumber: 'XXXXXXX', status: 'pending' },
+    create: { id: `kyc-${jane.id}`, partnerId: jane.id, idType: 'Pan Card', idNumber: 'XXXXXXX', status: 'pending' },
   });
   await prisma.partnerBank.upsert({
     where: { partnerId: jane.id },

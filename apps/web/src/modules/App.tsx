@@ -7,6 +7,7 @@ import Categories from './categories/Categories';
 import Items from './items/Items';
 import Partners from './partners/Partners';
 import Users from './users/Users';
+import EndUsers from './end-users/EndUsers';
 import { useAuthState } from './hooks/useAuthState';
 
 export const App: React.FC = () => {
@@ -22,6 +23,7 @@ export const App: React.FC = () => {
 						<Route path="/items" element={<Items token={auth.token} />} />
 						<Route path="/partners" element={<Partners token={auth.token} />} />
 						<Route path="/users" element={<Users token={auth.token} />} />
+						<Route path="/end-users" element={<EndUsers />} />
 						<Route path="*" element={<Navigate to="/dashboard" replace />} />
 					</Routes>
 				</AppLayout>
