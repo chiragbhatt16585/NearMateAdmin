@@ -44,7 +44,7 @@ export class EndUsersService {
             address: true,
           }
         },
-        billingHistory: true,
+        // billingHistory: true, // Removed - field doesn't exist in schema
         reviews: true,
       }
     });
@@ -83,7 +83,7 @@ export class EndUsersService {
               category: true,
             }
           },
-          billingHistory: true,
+          // billingHistory: true, // Removed - field doesn't exist in schema
           reviews: true,
         },
         skip: (page - 1) * limit,
@@ -118,7 +118,7 @@ export class EndUsersService {
             review: true,
           }
         },
-        billingHistory: true,
+        // billingHistory: true, // Removed - field doesn't exist in schema
         reviews: true,
       }
     });
@@ -167,7 +167,7 @@ export class EndUsersService {
             address: true,
           }
         },
-        billingHistory: true,
+        // billingHistory: true, // Removed - field doesn't exist in schema
         reviews: true,
       }
     });
@@ -197,7 +197,9 @@ export class EndUsersService {
     const stats = {
       totalBookings: user.bookings?.length || 0,
       completedBookings: user.bookings?.filter((b: any) => b.status === 'completed').length || 0,
-      totalSpent: user.billing?.reduce((sum: number, bill: any) => sum + bill.finalAmount, 0) || 0,
+      totalSpent: user.bookings?.reduce((sum: number, booking: any) => {
+        return sum + (booking.billing?.finalAmount || 0);
+      }, 0) || 0,
       averageRating: user.reviews?.length > 0 
         ? user.reviews.reduce((sum: number, review: any) => sum + review.rating, 0) / user.reviews.length 
         : 0,

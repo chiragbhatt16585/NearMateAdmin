@@ -1,19 +1,20 @@
 import React from 'react';
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import AppLayout from './layout/AppLayout';
 import Login from './auth/Login';
 import Dashboard from './dashboard/Dashboard';
+import Users from './users/Users';
+import Partners from './partners/Partners';
+import EndUsers from './end-users/EndUsers';
 import Categories from './categories/Categories';
 import Items from './items/Items';
-import Partners from './partners/Partners';
-import Users from './users/Users';
-import EndUsers from './end-users/EndUsers';
+import OTPManagement from './otp/OTPManagement';
 import { useAuthState } from './hooks/useAuthState';
 
 export const App: React.FC = () => {
 	const auth = useAuthState();
 	return (
-		<BrowserRouter>
+		<Router>
 			{auth.token ? (
 				<AppLayout onLogout={() => auth.setToken(null)}>
 					<Routes>
@@ -24,6 +25,7 @@ export const App: React.FC = () => {
 						<Route path="/partners" element={<Partners token={auth.token} />} />
 						<Route path="/users" element={<Users token={auth.token} />} />
 						<Route path="/end-users" element={<EndUsers />} />
+						<Route path="/otp-management" element={<OTPManagement token={auth.token} />} />
 						<Route path="*" element={<Navigate to="/dashboard" replace />} />
 					</Routes>
 				</AppLayout>
@@ -32,7 +34,7 @@ export const App: React.FC = () => {
 					<Route path="/*" element={<Login onAuthed={auth.setToken} />} />
 				</Routes>
 			)}
-		</BrowserRouter>
+		</Router>
 	);
 };
 

@@ -73,6 +73,18 @@ const EndUsers: React.FC = () => {
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
 
+  // OTP States
+  const [otpStep, setOtpStep] = useState<'phone' | 'validation' | 'otp' | 'details'>('phone');
+  const [otpRequested, setOtpRequested] = useState(false);
+  const [otpCode, setOtpCode] = useState('');
+  const [otpLoading, setOtpLoading] = useState(false);
+  const [otpError, setOtpError] = useState('');
+  const [phoneValidation, setPhoneValidation] = useState<{
+    isRegistered: boolean;
+    existingUser?: any;
+    loading: boolean;
+  }>({ isRegistered: false, loading: false });
+
   const [formData, setFormData] = useState({
     name: '',
     email: '',
@@ -109,32 +121,153 @@ const EndUsers: React.FC = () => {
     }
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const requestOTP = async (phone: string) => {
     try {
-      const token = localStorage.getItem('accessToken');
-      const response = await fetch('/api/v1/end-users', {
+      setOtpLoading(true);
+      setOtpError('');
+      
+      const response = await fetch('/api/v1/auth/request-otp', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
         },
-        body: JSON.stringify(formData),
+        body: JSON.stringify({
+          mobile: phone,
+          userType: 'end-user',
+          purpose: 'register'
+        }),
       });
 
       if (response.ok) {
-        setShowAddModal(false);
-        setFormData({ name: '', email: '', phone: '', dateOfBirth: '', gender: '' });
-        fetchUsers();
+        setOtpRequested(true);
+        setOtpStep('otp');
+        // In a real app, you'd show a success message here
+      } else {
+        const errorData = await response.json();
+        setOtpError(errorData.message || 'Failed to send OTP');
       }
     } catch (error) {
-      console.error('Error creating user:', error);
+      console.error('Error requesting OTP:', error);
+      setOtpError('Failed to send OTP. Please try again.');
+    } finally {
+      setOtpLoading(false);
+    }
+  };
+
+  const checkPhoneRegistration = async (phone: string) => {
+    try {
+      setPhoneValidation({ isRegistered: false, loading: true });
+      setOtpError('');
+      
+      // Check if phone number already exists in our users list
+      const existingUser = users.find(user => user.phone === phone);
+      
+      if (existingUser) {
+        setPhoneValidation({
+          isRegistered: true,
+          existingUser,
+          loading: false
+        });
+        setOtpStep('validation');
+      } else {
+        setPhoneValidation({
+          isRegistered: false,
+          loading: false
+        });
+        // Phone is not registered, proceed to OTP
+        await requestOTP(phone);
+      }
+    } catch (error) {
+      console.error('Error checking phone registration:', error);
+      setOtpError('Failed to check phone number. Please try again.');
+      setPhoneValidation({ isRegistered: false, loading: false });
+    }
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    if (otpStep === 'phone') {
+      // First step: Request OTP
+      if (!formData.phone) {
+        setOtpError('Please enter a phone number');
+        return;
+      }
+      await checkPhoneRegistration(formData.phone);
+      return;
+    }
+    
+    if (otpStep === 'otp') {
+      // Second step: Verify OTP
+      if (!otpCode) {
+        setOtpError('Please enter the OTP');
+        return;
+      }
+      
+      try {
+        setOtpLoading(true);
+        setOtpError('');
+        
+        const response = await fetch('/api/v1/auth/verify-otp-register', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            mobile: formData.phone,
+            otp: otpCode,
+            userType: 'end-user',
+            userData: {
+              name: formData.name,
+              email: formData.email,
+              dateOfBirth: formData.dateOfBirth || undefined,
+              gender: formData.gender || undefined,
+            }
+          }),
+        });
+
+        if (response.ok) {
+          const result = await response.json();
+          setShowAddModal(false);
+          setFormData({ name: '', email: '', phone: '', dateOfBirth: '', gender: '' });
+          setOtpStep('phone');
+          setOtpCode('');
+          setOtpRequested(false);
+          setOtpError('');
+          fetchUsers();
+          // Show success message
+          alert('User created successfully with OTP verification!');
+        } else {
+          const errorData = await response.json();
+          setOtpError(errorData.message || 'OTP verification failed');
+        }
+      } catch (error) {
+        console.error('Error verifying OTP:', error);
+        setOtpError('Failed to verify OTP. Please try again.');
+      } finally {
+        setOtpLoading(false);
+      }
+      return;
+    }
+    
+    if (otpStep === 'details') {
+      // Third step: Submit user details (this step is handled in OTP verification)
+      setOtpStep('otp');
     }
   };
 
   const handleViewUser = (user: EndUser) => {
     setSelectedUser(user);
     setShowViewModal(true);
+  };
+
+  const resetOtpFlow = () => {
+    setOtpStep('phone');
+    setOtpRequested(false);
+    setOtpCode('');
+    setOtpError('');
+    setPhoneValidation({ isRegistered: false, loading: false });
+    setFormData({ name: '', email: '', phone: '', dateOfBirth: '', gender: '' });
   };
 
   const getStatusColor = (status: string) => {
@@ -254,6 +387,7 @@ const EndUsers: React.FC = () => {
           onClose={() => {
             setShowViewModal(false);
             setSelectedUser(null);
+            resetOtpFlow();
           }}
           title="User Details"
         >
@@ -372,88 +506,201 @@ const EndUsers: React.FC = () => {
         <PortalModal
           onClose={() => {
             setShowAddModal(false);
-            setFormData({ name: '', email: '', phone: '', dateOfBirth: '', gender: '' });
+            resetOtpFlow();
           }}
-          title="Add New User"
+          title="Add New User with OTP Verification"
         >
           <form onSubmit={handleSubmit} className="space-y-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Name *</label>
-              <input
-                type="text"
-                required
-                value={formData.name}
-                onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-gray-900/10"
-                placeholder="Enter full name"
-              />
-            </div>
+            {/* Step 1: Phone Number Input */}
+            {otpStep === 'phone' && (
+              <>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Phone Number *</label>
+                  <input
+                    type="tel"
+                    required
+                    value={formData.phone}
+                    onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+                    className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-gray-900/10"
+                    placeholder="Enter phone number"
+                  />
+                </div>
+                
+                {otpError && (
+                  <div className="text-red-600 text-sm">{otpError}</div>
+                )}
+                
+                <div className="flex justify-end gap-3 pt-4">
+                  <button
+                    type="button"
+                    onClick={() => setShowAddModal(false)}
+                    className="px-4 py-2 text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={otpLoading || phoneValidation.loading}
+                    className="px-4 py-2 bg-black text-white rounded-lg hover:bg-gray-800 disabled:opacity-50"
+                  >
+                    {phoneValidation.loading ? 'Checking...' : otpLoading ? 'Sending OTP...' : 'Check Phone Number'}
+                  </button>
+                </div>
+              </>
+            )}
 
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Email *</label>
-              <input
-                type="email"
-                required
-                value={formData.email}
-                onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-gray-900/10"
-                placeholder="Enter email address"
-              />
-            </div>
+            {/* Step 1.5: Phone Validation Result */}
+            {otpStep === 'validation' && (
+              <>
+                <div className="text-center mb-6">
+                  <div className="mx-auto flex items-center justify-center h-12 w-12 rounded-full bg-yellow-100 mb-4">
+                    <svg className="h-6 w-6 text-yellow-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z" />
+                    </svg>
+                  </div>
+                  <h3 className="text-lg font-medium text-gray-900 mb-2">Phone Number Already Registered</h3>
+                  <p className="text-sm text-gray-600 mb-4">
+                    The phone number <strong>{formData.phone}</strong> is already registered with another user.
+                  </p>
+                  
+                  {phoneValidation.existingUser && (
+                    <div className="bg-gray-50 rounded-lg p-4 text-left">
+                      <h4 className="font-medium text-gray-900 mb-2">Existing User Details:</h4>
+                      <div className="text-sm text-gray-600 space-y-1">
+                        <p><strong>Name:</strong> {phoneValidation.existingUser.name}</p>
+                        <p><strong>Email:</strong> {phoneValidation.existingUser.email}</p>
+                        <p><strong>Status:</strong> <span className={`px-2 py-1 rounded-full text-xs ${getStatusColor(phoneValidation.existingUser.status)}`}>{phoneValidation.existingUser.status}</span></p>
+                        <p><strong>Registered:</strong> {new Date(phoneValidation.existingUser.createdAt).toLocaleDateString()}</p>
+                      </div>
+                    </div>
+                  )}
+                </div>
+                
+                <div className="flex justify-end gap-3 pt-4">
+                  <button
+                    type="button"
+                    onClick={() => setOtpStep('phone')}
+                    className="px-4 py-2 text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200"
+                  >
+                    Use Different Phone
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setShowAddModal(false)}
+                    className="px-4 py-2 bg-black text-white rounded-lg hover:bg-gray-800"
+                  >
+                    Close
+                  </button>
+                </div>
+              </>
+            )}
 
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Phone *</label>
-              <input
-                type="tel"
-                required
-                value={formData.phone}
-                onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-                className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-gray-900/10"
-                placeholder="Enter phone number"
-              />
-            </div>
+            {/* Step 2: OTP Verification */}
+            {otpStep === 'otp' && (
+              <>
+                <div className="text-center mb-4">
+                  <p className="text-sm text-gray-600">
+                    OTP sent to {formData.phone}
+                  </p>
+                  <p className="text-xs text-gray-500 mt-1">
+                    Enter the 6-digit OTP received on your phone
+                  </p>
+                </div>
+                
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">OTP Code *</label>
+                  <input
+                    type="text"
+                    required
+                    value={otpCode}
+                    onChange={(e) => setOtpCode(e.target.value)}
+                    className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-gray-900/10 text-center text-lg tracking-widest"
+                    placeholder="123456"
+                    maxLength={6}
+                  />
+                </div>
 
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Date of Birth</label>
-                <input
-                  type="date"
-                  value={formData.dateOfBirth}
-                  onChange={(e) => setFormData({ ...formData, dateOfBirth: e.target.value })}
-                  className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-gray-900/10"
-                />
-              </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Name *</label>
+                  <input
+                    type="text"
+                    required
+                    value={formData.name}
+                    onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                    className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-gray-900/10"
+                    placeholder="Enter full name"
+                  />
+                </div>
 
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Gender</label>
-                <select
-                  value={formData.gender}
-                  onChange={(e) => setFormData({ ...formData, gender: e.target.value })}
-                  className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-gray-900/10"
-                >
-                  <option value="">Select gender</option>
-                  <option value="male">Male</option>
-                  <option value="female">Female</option>
-                  <option value="other">Other</option>
-                </select>
-              </div>
-            </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Email *</label>
+                  <input
+                    type="email"
+                    required
+                    value={formData.email}
+                    onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                    className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-gray-900/10"
+                    placeholder="Enter email address"
+                  />
+                </div>
 
-            <div className="flex justify-end gap-3 pt-4">
-              <button
-                type="button"
-                onClick={() => setShowAddModal(false)}
-                className="px-4 py-2 text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200"
-              >
-                Cancel
-              </button>
-              <button
-                type="submit"
-                className="px-4 py-2 bg-black text-white rounded-lg hover:bg-gray-800"
-              >
-                Create User
-              </button>
-            </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Date of Birth</label>
+                    <input
+                      type="date"
+                      value={formData.dateOfBirth}
+                      onChange={(e) => setFormData({ ...formData, dateOfBirth: e.target.value })}
+                      className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-gray-900/10"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Gender</label>
+                    <select
+                      value={formData.gender}
+                      onChange={(e) => setFormData({ ...formData, gender: e.target.value })}
+                      className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-gray-900/10"
+                    >
+                      <option value="">Select gender</option>
+                      <option value="male">Male</option>
+                      <option value="female">Female</option>
+                      <option value="other">Other</option>
+                    </select>
+                  </div>
+                </div>
+                
+                {otpError && (
+                  <div className="text-red-600 text-sm">{otpError}</div>
+                )}
+                
+                <div className="flex justify-between gap-3 pt-4">
+                  <button
+                    type="button"
+                    onClick={() => setOtpStep('phone')}
+                    className="px-4 py-2 text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200"
+                  >
+                    Back
+                  </button>
+                  <div className="flex gap-3">
+                    <button
+                      type="button"
+                      onClick={() => setShowAddModal(false)}
+                      className="px-4 py-2 text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      type="submit"
+                      disabled={otpLoading}
+                      className="px-4 py-2 bg-black text-white rounded-lg hover:bg-gray-800 disabled:opacity-50"
+                    >
+                      {otpLoading ? 'Verifying...' : 'Verify OTP & Create User'}
+                    </button>
+                  </div>
+                </div>
+              </>
+            )}
           </form>
         </PortalModal>
       )}

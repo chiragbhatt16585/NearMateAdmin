@@ -40,6 +40,14 @@ const Partners: React.FC<PartnersProps> = ({ token }) => {
 	const [viewPlanPartner, setViewPlanPartner] = React.useState<PartnerRow | null>(null);
 	const [viewRatingsPartner, setViewRatingsPartner] = React.useState<PartnerRow | null>(null);
 
+	// Phone validation state
+	const [phoneValidation, setPhoneValidation] = React.useState<{
+		isRegistered: boolean;
+		existingPartner?: PartnerRow;
+		loading: boolean;
+	}>({ isRegistered: false, loading: false });
+	const [showPhoneValidation, setShowPhoneValidation] = React.useState(false);
+
 	// Add form
 	const [pName, setPName] = React.useState('');
 	const [pPhone, setPPhone] = React.useState('');
@@ -129,6 +137,35 @@ const Partners: React.FC<PartnersProps> = ({ token }) => {
 		} catch {}
 	}
 
+	async function checkPhoneRegistration(phone: string) {
+		try {
+			setPhoneValidation({ isRegistered: false, loading: true });
+			
+			// Check if phone number already exists in our partners list
+			const existingPartner = partners.find(partner => partner.phone === phone);
+			
+			if (existingPartner) {
+				setPhoneValidation({
+					isRegistered: true,
+					existingPartner,
+					loading: false
+				});
+				setShowPhoneValidation(true);
+			} else {
+				setPhoneValidation({
+					isRegistered: false,
+					loading: false
+				});
+				// Phone is not registered, proceed with form submission
+				return true;
+			}
+		} catch (error) {
+			console.error('Error checking phone registration:', error);
+			setPhoneValidation({ isRegistered: false, loading: false });
+		}
+		return false;
+	}
+
 	React.useEffect(() => { load(); }, []);
 
 	function keyToLabel(k: string) {
@@ -189,6 +226,15 @@ const Partners: React.FC<PartnersProps> = ({ token }) => {
 
 	async function addPartner(e: React.FormEvent) {
 		e.preventDefault();
+		
+		// Check phone validation first
+		if (pPhone.trim()) {
+			const canProceed = await checkPhoneRegistration(pPhone.trim());
+			if (!canProceed) {
+				return; // Stop here if phone is already registered
+			}
+		}
+		
 		const payload: any = {
 			name: pName.trim(),
 			phone: pPhone.trim() || undefined,
@@ -386,7 +432,19 @@ const Partners: React.FC<PartnersProps> = ({ token }) => {
 							</div>
 							<div>
 								<label className="text-xs text-gray-600">Phone</label>
-								<input value={pPhone} onChange={(e)=>setPPhone(e.target.value)} className="w-full border rounded-lg px-3 py-2" placeholder="Phone" />
+								<div className="relative">
+									<input 
+										value={pPhone} 
+										onChange={(e)=>setPPhone(e.target.value)} 
+										className="w-full border rounded-lg px-3 py-2" 
+										placeholder="Phone" 
+									/>
+									{phoneValidation.loading && (
+										<div className="absolute right-2 top-1/2 -translate-y-1/2">
+											<div className="animate-spin rounded-full h-4 w-4 border-b-2 border-gray-900"></div>
+										</div>
+									)}
+								</div>
 							</div>
 							<div>
 								<label className="text-xs text-gray-600">Email</label>
@@ -754,6 +812,46 @@ const Partners: React.FC<PartnersProps> = ({ token }) => {
 									</div>
 								)}
 							</div>
+						</div>
+					</div>
+				</PortalModal>
+			)}
+
+			{/* Phone Validation Modal */}
+			{showPhoneValidation && phoneValidation.existingPartner && (
+				<PortalModal title="Phone Number Already Registered" onClose={() => setShowPhoneValidation(false)} maxWidthClass="max-w-md">
+					<div className="text-center space-y-4">
+						<div className="mx-auto flex items-center justify-center h-12 w-12 rounded-full bg-yellow-100">
+							<svg className="h-6 w-6 text-yellow-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+								<path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z" />
+							</svg>
+						</div>
+						
+						<div>
+							<h3 className="text-lg font-medium text-gray-900 mb-2">Phone Number Already Registered</h3>
+							<p className="text-sm text-gray-600 mb-4">
+								The phone number <strong>{pPhone}</strong> is already registered with another partner.
+							</p>
+							
+							<div className="bg-gray-50 rounded-lg p-4 text-left">
+								<h4 className="font-medium text-gray-900 mb-2">Existing Partner Details:</h4>
+								<div className="text-sm text-gray-600 space-y-1">
+									<p><strong>Name:</strong> {phoneValidation.existingPartner.name}</p>
+									<p><strong>Email:</strong> {phoneValidation.existingPartner.email || '—'}</p>
+									<p><strong>Phone:</strong> {phoneValidation.existingPartner.phone || '—'}</p>
+									<p><strong>Categories:</strong> {phoneValidation.existingPartner.categoryKeys.map((k: string) => keyToLabel(k)).join(', ') || '—'}</p>
+								</div>
+							</div>
+						</div>
+						
+						<div className="flex justify-end gap-3 pt-4">
+							<button
+								type="button"
+								onClick={() => setShowPhoneValidation(false)}
+								className="px-4 py-2 bg-black text-white rounded-lg hover:bg-gray-800"
+							>
+								Close
+							</button>
 						</div>
 					</div>
 				</PortalModal>

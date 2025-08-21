@@ -385,3 +385,18 @@ model EndUserReview {
   @@index([partnerId])
   @@index([rating])
 }
+
+model OTPCode {
+  id        String   @id @default(uuid())
+  phone     String   @db.VarChar(32)
+  code      String   @db.VarChar(10)
+  purpose   String   @default("login") // "login" or "register"
+  actor     String   // "end_user" or "partner"
+  is_used   Boolean  @default(false) @map("is_used")
+  createdAt DateTime @default(now()) @map("createdAt")
+  expiresAt DateTime @map("expiresAt")
+  
+  @@map("OTPCode")
+  @@index([phone])
+  @@index([expiresAt])
+}
