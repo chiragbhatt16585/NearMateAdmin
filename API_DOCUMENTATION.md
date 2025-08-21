@@ -36,7 +36,564 @@ Response:
 }
 ```
 
+### Mobile App OTP Authentication
+
+#### Request OTP for mobile number
+```http
+POST /auth/request-otp
+Content-Type: application/json
+
+{
+  "mobile": "+919876543210",
+  "userType": "end-user"  // "end-user" or "partner"
+}
+```
+
+Response:
+```json
+{
+  "message": "OTP sent successfully",
+  "mobile": "+919876543210",
+  "userType": "end-user",
+  "expiresIn": 300  // OTP expires in 5 minutes
+}
+```
+
+#### Verify OTP for new user registration
+```http
+POST /auth/verify-otp-register
+Content-Type: application/json
+
+{
+  "mobile": "+919876543210",
+  "otp": "123456",
+  "userType": "end-user",
+  "userData": {
+    "name": "Rahul Sharma",
+    "email": "rahul@example.com",
+    "dateOfBirth": "1995-09-17",  // optional
+    "gender": "male"               // optional
+  }
+}
+```
+
+Response:
+```json
+{
+  "user": {
+    "id": "new-user-uuid",
+    "name": "Rahul Sharma",
+    "email": "rahul@example.com",
+    "mobile": "+919876543210",
+    "status": "active",
+    "createdAt": "2025-08-21T12:00:00.000Z"
+  },
+  "accessToken": "eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9...",
+  "message": "User registered successfully"
+}
+```
+
+#### Verify OTP for existing user login
+```http
+POST /auth/verify-otp-login
+Content-Type: application/json
+
+{
+  "mobile": "+919876543210",
+  "otp": "123456",
+  "userType": "end-user"
+}
+```
+
+Response:
+```json
+{
+  "user": {
+    "id": "existing-user-uuid",
+    "name": "Rahul Sharma",
+    "email": "rahul@example.com",
+    "mobile": "+919876543210",
+    "status": "active",
+    "createdAt": "2025-08-21T12:00:00.000Z"
+  },
+  "accessToken": "eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9...",
+  "message": "Login successful"
+}
+```
+
+#### Admin: List recent OTPs (for manual copy)
+```http
+GET /auth/otps?limit=10
+Authorization: Bearer <admin_token>
+```
+
+Response:
+```json
+{
+  "otps": [
+    {
+      "id": "otp-uuid",
+      "mobile": "+919876543210",
+      "otp": "123456",
+      "userType": "end-user",
+      "isUsed": false,
+      "expiresAt": "2025-08-21T12:05:00.000Z",
+      "createdAt": "2025-08-21T12:00:00.000Z"
+    }
+  ],
+  "pagination": { "page": 1, "limit": 10, "total": 1, "pages": 1 }
+}
+```
+
+#### Admin: Clear expired OTPs
+```http
+DELETE /auth/otps/expired
+Authorization: Bearer <admin_token>
+```
+
+Response:
+```json
+{
+  "message": "Expired OTPs cleared successfully",
+  "deletedCount": 5
+}
+```
+
+## OTP Authentication Flow
+
+### For New Users (Registration)
+1. **Request OTP**: Send mobile number to `/auth/request-otp`
+2. **User enters OTP**: User receives OTP via SMS (or admin copies from web interface)
+3. **Verify & Register**: Send OTP + user data to `/auth/verify-otp-register`
+4. **User Created**: New user account created with mobile as primary identifier
+5. **Login Token**: Access token returned for immediate app access
+
+### For Existing Users (Login)
+1. **Request OTP**: Send mobile number to `/auth/request-otp`
+2. **User enters OTP**: User receives OTP via SMS (or admin copies from web interface)
+3. **Verify & Login**: Send OTP to `/auth/verify-otp-login`
+4. **User Authenticated**: Existing user account found and verified
+5. **Login Token**: Access token returned for app access
+
+### OTP Security Features
+- OTP expires in 5 minutes
+- OTP can only be used once
+- Rate limiting prevents OTP spam
+- Admin can view all OTPs for manual copy during development
+- OTPs are automatically cleaned up after expiration
+
+## Mobile App Integration Examples
+
+### React Native OTP Flow
+```javascript
+// OTP Authentication Service
+class OTPService {
+  constructor() {
+    this.API_BASE = 'http://localhost:4000/api/v1';
+  }
+
+  // Request OTP
+  async requestOTP(mobile, userType) {
+    const response = await fetch(`${this.API_BASE}/auth/request-otp`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ mobile, userType })
+    });
+    
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.message || 'Failed to send OTP');
+    }
+    
+    return response.json();
+  }
+
+  // Verify OTP for registration
+  async verifyOTPRegister(mobile, otp, userType, userData) {
+    const response = await fetch(`${this.API_BASE}/auth/verify-otp-register`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ mobile, otp, userType, userData })
+    });
+    
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.message || 'OTP verification failed');
+    }
+    
+    return response.json();
+  }
+
+  // Verify OTP for login
+  async verifyOTPLogin(mobile, otp, userType) {
+    const response = await fetch(`${this.API_BASE}/auth/verify-otp-login`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ mobile, otp, userType })
+    });
+    
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.message || 'OTP verification failed');
+    }
+    
+    return response.json();
+  }
+}
+
+// Usage in React Native components
+const LoginScreen = () => {
+  const [mobile, setMobile] = useState('');
+  const [otp, setOtp] = useState('');
+  const [isOTPSent, setIsOTPSent] = useState(false);
+  const [userType, setUserType] = useState('end-user');
+  
+  const otpService = new OTPService();
+
+  const handleRequestOTP = async () => {
+    try {
+      await otpService.requestOTP(mobile, userType);
+      setIsOTPSent(true);
+      Alert.alert('Success', 'OTP sent to your mobile number');
+    } catch (error) {
+      Alert.alert('Error', error.message);
+    }
+  };
+
+  const handleVerifyOTP = async () => {
+    try {
+      // Try login first
+      const result = await otpService.verifyOTPLogin(mobile, otp, userType);
+      // User exists, login successful
+      await AsyncStorage.setItem('accessToken', result.accessToken);
+      await AsyncStorage.setItem('userData', JSON.stringify(result.user));
+      // Navigate to main app
+    } catch (error) {
+      if (error.message.includes('User not found')) {
+        // User doesn't exist, show registration form
+        setShowRegistrationForm(true);
+      } else {
+        Alert.alert('Error', error.message);
+      }
+    }
+  };
+
+  const handleRegister = async (userData) => {
+    try {
+      const result = await otpService.verifyOTPRegister(mobile, otp, userType, userData);
+      await AsyncStorage.setItem('accessToken', result.accessToken);
+      await AsyncStorage.setItem('userData', JSON.stringify(result.user));
+      // Navigate to main app
+    } catch (error) {
+      Alert.alert('Error', error.message);
+    }
+  };
+
+  return (
+    <View style={styles.container}>
+      <TextInput
+        placeholder="Mobile Number"
+        value={mobile}
+        onChangeText={setMobile}
+        keyboardType="phone-pad"
+      />
+      
+      <Picker
+        selectedValue={userType}
+        onValueChange={setUserType}
+      >
+        <Picker.Item label="End User" value="end-user" />
+        <Picker.Item label="Partner" value="partner" />
+      </Picker>
+
+      {!isOTPSent ? (
+        <Button title="Send OTP" onPress={handleRequestOTP} />
+      ) : (
+        <>
+          <TextInput
+            placeholder="Enter OTP"
+            value={otp}
+            onChangeText={setOtp}
+            keyboardType="numeric"
+          />
+          <Button title="Verify OTP" onPress={handleVerifyOTP} />
+        </>
+      )}
+    </View>
+  );
+};
+```
+
+### Flutter OTP Flow
+```dart
+// OTP Service Class
+class OTPService {
+  static const String baseUrl = 'http://localhost:4000/api/v1';
+  
+  // Request OTP
+  static Future<Map<String, dynamic>> requestOTP(String mobile, String userType) async {
+    final response = await http.post(
+      Uri.parse('$baseUrl/auth/request-otp'),
+      headers: {'Content-Type': 'application/json'},
+      body: jsonEncode({
+        'mobile': mobile,
+        'userType': userType,
+      }),
+    );
+    
+    if (response.statusCode == 200) {
+      return jsonDecode(response.body);
+    } else {
+      final error = jsonDecode(response.body);
+      throw Exception(error['message'] ?? 'Failed to send OTP');
+    }
+  }
+  
+  // Verify OTP for registration
+  static Future<Map<String, dynamic>> verifyOTPRegister(
+    String mobile, 
+    String otp, 
+    String userType, 
+    Map<String, dynamic> userData
+  ) async {
+    final response = await http.post(
+      Uri.parse('$baseUrl/auth/verify-otp-register'),
+      headers: {'Content-Type': 'application/json'},
+      body: jsonEncode({
+        'mobile': mobile,
+        'otp': otp,
+        'userType': userType,
+        'userData': userData,
+      }),
+    );
+    
+    if (response.statusCode == 200) {
+      return jsonDecode(response.body);
+    } else {
+      final error = jsonDecode(response.body);
+      throw Exception(error['message'] ?? 'OTP verification failed');
+    }
+  }
+  
+  // Verify OTP for login
+  static Future<Map<String, dynamic>> verifyOTPLogin(
+    String mobile, 
+    String otp, 
+    String userType
+  ) async {
+    final response = await http.post(
+      Uri.parse('$baseUrl/auth/verify-otp-login'),
+      headers: {'Content-Type': 'application/json'},
+      body: jsonEncode({
+        'mobile': mobile,
+        'otp': otp,
+        'userType': userType,
+      }),
+    );
+    
+    if (response.statusCode == 200) {
+      return jsonDecode(response.body);
+    } else {
+      final error = jsonDecode(response.body);
+      throw Exception(error['message'] ?? 'OTP verification failed');
+    }
+  }
+}
+```
+
+### Admin Web Interface for OTP Management
+```javascript
+// Admin OTP Management Component
+const OTPManagement = () => {
+  const [otps, setOtps] = useState([]);
+  const [loading, setLoading] = useState(false);
+  
+  const loadOTPs = async () => {
+    setLoading(true);
+    try {
+      const token = localStorage.getItem('accessToken');
+      const response = await fetch('/api/v1/auth/otps?limit=20', {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      
+      if (response.ok) {
+        const data = await response.json();
+        setOtps(data.otps);
+      }
+    } catch (error) {
+      console.error('Failed to load OTPs:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+  
+  const clearExpiredOTPs = async () => {
+    try {
+      const token = localStorage.getItem('accessToken');
+      const response = await fetch('/api/v1/auth/otps/expired', {
+        method: 'DELETE',
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      
+      if (response.ok) {
+        const result = await response.json();
+        alert(`Cleared ${result.deletedCount} expired OTPs`);
+        loadOTPs(); // Reload the list
+      }
+    } catch (error) {
+      console.error('Failed to clear OTPs:', error);
+    }
+  };
+  
+  const copyOTP = (otp) => {
+    navigator.clipboard.writeText(otp);
+    alert('OTP copied to clipboard!');
+  };
+  
+  useEffect(() => {
+    loadOTPs();
+    // Refresh every 30 seconds
+    const interval = setInterval(loadOTPs, 30000);
+    return () => clearInterval(interval);
+  }, []);
+  
+  return (
+    <div className="otp-management">
+      <h2>OTP Management</h2>
+      
+      <div className="actions">
+        <button onClick={loadOTPs} disabled={loading}>
+          {loading ? 'Loading...' : 'Refresh OTPs'}
+        </button>
+        <button onClick={clearExpiredOTPs}>Clear Expired OTPs</button>
+      </div>
+      
+      <table className="otp-table">
+        <thead>
+          <tr>
+            <th>Mobile</th>
+            <th>User Type</th>
+            <th>OTP</th>
+            <th>Status</th>
+            <th>Expires At</th>
+            <th>Created At</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          {otps.map(otp => (
+            <tr key={otp.id} className={otp.isUsed ? 'used' : 'active'}>
+              <td>{otp.mobile}</td>
+              <td>{otp.userType}</td>
+              <td>
+                <code>{otp.otp}</code>
+                <button onClick={() => copyOTP(otp.otp)}>Copy</button>
+              </td>
+              <td>{otp.isUsed ? 'Used' : 'Active'}</td>
+              <td>{new Date(otp.expiresAt).toLocaleString()}</td>
+              <td>{new Date(otp.createdAt).toLocaleString()}</td>
+              <td>
+                {!otp.isUsed && (
+                  <span className="status active">Active</span>
+                )}
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+};
+```
+
 ## Endpoints
+
+### 0. End Users (Customers)
+
+#### Create end user
+```http
+POST /end-users
+Authorization: Bearer <token>
+Content-Type: application/json
+
+{
+  "name": "Rahul Sharma",
+  "email": "rahul@example.com",
+  "phone": "+919876543210",
+  "dateOfBirth": "1995-09-17",   // optional (YYYY-MM-DD)
+  "gender": "male"               // optional (male|female|other)
+}
+```
+
+Response:
+```json
+{
+  "id": "<uuid>",
+  "name": "Rahul Sharma",
+  "email": "rahul@example.com",
+  "phone": "+919876543210",
+  "status": "active",
+  "createdAt": "2025-08-21T12:00:00.000Z",
+  "updatedAt": "2025-08-21T12:00:00.000Z",
+  "addresses": [],
+  "bookings": [],
+  "reviews": []
+}
+```
+
+**Note**: For mobile app users, use the OTP-based registration flow instead:
+1. Request OTP via `/auth/request-otp`
+2. Verify OTP and register via `/auth/verify-otp-register`
+
+This ensures secure mobile-based registration without requiring admin tokens.
+
+#### List end users
+```http
+GET /end-users?search=rahul&page=1&limit=20
+Authorization: Bearer <token>
+```
+
+Response:
+```json
+{
+  "users": [
+    {
+      "id": "<uuid>",
+      "name": "Rahul Sharma",
+      "email": "rahul@example.com",
+      "phone": "+919876543210",
+      "status": "active",
+      "createdAt": "2025-08-21T12:00:00.000Z",
+      "updatedAt": "2025-08-21T12:00:00.000Z"
+    }
+  ],
+  "pagination": { "page": 1, "limit": 20, "total": 1, "pages": 1 }
+}
+```
+
+#### Get end user by ID
+```http
+GET /end-users/{id}
+Authorization: Bearer <token>
+```
+
+#### Update end user
+```http
+PATCH /end-users/{id}
+Authorization: Bearer <token>
+Content-Type: application/json
+
+{
+  "name": "Rahul K Sharma",
+  "status": "active"
+}
+```
+
+#### Delete end user
+```http
+DELETE /end-users/{id}
+Authorization: Bearer <token>
+```
 
 ### 1. Categories
 
@@ -172,6 +729,12 @@ Content-Type: application/json
   }
 }
 ```
+
+**Note**: For mobile app partners, use the OTP-based registration flow instead:
+1. Request OTP via `/auth/request-otp` with `userType: "partner"`
+2. Verify OTP and register via `/auth/verify-otp-register` with partner data
+
+This ensures secure mobile-based registration without requiring admin tokens.
 
 #### Update partner
 ```http
@@ -441,6 +1004,20 @@ interface User {
   name: string;
   role: string;
   status: string;
+  createdAt: Date;
+  updatedAt: Date;
+}
+```
+
+### OTPCode
+```typescript
+interface OTPCode {
+  id: string;
+  mobile: string;
+  otp: string;
+  userType: 'end-user' | 'partner';
+  isUsed: boolean;
+  expiresAt: Date;
   createdAt: Date;
   updatedAt: Date;
 }

@@ -29,7 +29,7 @@ export class AuthService {
     const privateKey = this.getPrivateKey();
     const accessToken = await this.jwtService.signAsync(payload, {
       privateKey,
-      expiresIn: '15m',
+      expiresIn: '1h',
     });
     // Refresh token rotation stored in DB will come later
     const refreshToken = await this.jwtService.signAsync(payload, {
