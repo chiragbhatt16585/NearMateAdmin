@@ -2,9 +2,10 @@ import { Module } from '@nestjs/common';
 import { EndUserAddressesController } from './end-user-addresses.controller';
 import { EndUserAddressesService } from './end-user-addresses.service';
 import { PrismaModule } from '../prisma/prisma.module';
+import { AuthModule } from '../auth/auth.module';
 
 @Module({
-  imports: [PrismaModule],
+  imports: [PrismaModule, AuthModule],
   controllers: [EndUserAddressesController],
   providers: [EndUserAddressesService],
   exports: [EndUserAddressesService],

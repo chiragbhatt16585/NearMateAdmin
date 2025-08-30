@@ -11,6 +11,7 @@ import { EndUsersModule } from './end-users/end-users.module';
 import { EndUserAddressesModule } from './end-user-addresses/end-user-addresses.module';
 import { EndUserBookingsModule } from './end-user-bookings/end-user-bookings.module';
 import { EndUserBillingModule } from './end-user-billing/end-user-billing.module';
+import { PincodeModule } from './pincode/pincode.module';
 // import { RatingsModule } from './ratings/ratings.module';
 
 @Module({
@@ -27,6 +28,7 @@ import { EndUserBillingModule } from './end-user-billing/end-user-billing.module
     EndUserAddressesModule,
     EndUserBookingsModule,
     EndUserBillingModule,
+    PincodeModule,
     // RatingsModule,
   ],
 })

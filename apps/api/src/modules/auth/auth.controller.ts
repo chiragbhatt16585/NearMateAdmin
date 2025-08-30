@@ -69,6 +69,37 @@ export class AuthController {
     };
   }
 
+  // New endpoint: Check if mobile exists and get user info for login
+  @Post('check-mobile-exists')
+  @HttpCode(200)
+  async checkMobileExists(@Body() body: { mobile: string; userType: string }) {
+    return await this.authService.checkPhoneRegistration(body.mobile, body.userType);
+  }
+
+  // New endpoint: Login with mobile OTP (for existing users)
+  @Post('login-with-mobile')
+  @HttpCode(200)
+  async loginWithMobile(@Body() body: { 
+    mobile: string; 
+    otp: string; 
+    userType: string 
+  }) {
+    // Verify OTP
+    await this.authService.verifyOTP(body.mobile, body.otp, body.userType, 'login');
+    
+    // Find existing user (don't create new one)
+    const user = await this.authService.findExistingUser(body.mobile, body.userType);
+    
+    // Issue tokens
+    const tokens = await this.authService.issueTokens(user.id, user.type);
+    
+    return {
+      user,
+      ...tokens,
+      message: 'Login successful'
+    };
+  }
+
   // Admin endpoints for OTP management
   @Get('otps')
   @UseGuards(JwtAuthGuard)

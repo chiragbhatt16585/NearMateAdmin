@@ -2,61 +2,66 @@ import {
   Controller, 
   Get, 
   Post, 
-  Body, 
   Patch, 
-  Param, 
   Delete, 
-  UseGuards 
+  Body, 
+  Param, 
+  UseGuards,
+  HttpCode,
+  HttpStatus
 } from '@nestjs/common';
-import { EndUserAddressesService } from './end-user-addresses.service';
 import { JwtAuthGuard } from '../auth/auth.guard';
+import { EndUserAddressesService } from './end-user-addresses.service';
 
-@UseGuards(JwtAuthGuard)
 @Controller('api/v1/end-users/:endUserId/addresses')
+@UseGuards(JwtAuthGuard)
 export class EndUserAddressesController {
   constructor(private readonly endUserAddressesService: EndUserAddressesService) {}
 
+  @Get()
+  async getAddresses(@Param('endUserId') endUserId: string) {
+    return await this.endUserAddressesService.getAddresses(endUserId);
+  }
+
+  @Get(':id')
+  async getAddress(
+    @Param('endUserId') endUserId: string,
+    @Param('id') addressId: string
+  ) {
+    return await this.endUserAddressesService.getAddress(endUserId, addressId);
+  }
+
   @Post()
-  create(
+  @HttpCode(HttpStatus.CREATED)
+  async createAddress(
     @Param('endUserId') endUserId: string,
     @Body() createAddressDto: {
       type: string;
       label: string;
-      addressLine1: string;
-      addressLine2?: string;
+      area: string;
+      pincode: string;
       city: string;
       state: string;
-      postalCode: string;
       country?: string;
       lat?: number;
       lng?: number;
       isDefault?: boolean;
     }
   ) {
-    return this.endUserAddressesService.create(endUserId, createAddressDto);
-  }
-
-  @Get()
-  findAll(@Param('endUserId') endUserId: string) {
-    return this.endUserAddressesService.findAll(endUserId);
-  }
-
-  @Get(':id')
-  findOne(@Param('id') id: string) {
-    return this.endUserAddressesService.findOne(id);
+    return await this.endUserAddressesService.createAddress(endUserId, createAddressDto);
   }
 
   @Patch(':id')
-  update(
-    @Param('id') id: string, 
+  async updateAddress(
+    @Param('endUserId') endUserId: string,
+    @Param('id') addressId: string,
     @Body() updateAddressDto: {
       type?: string;
       label?: string;
-      addressLine1?: string;
-      addressLine2?: string;
+      area?: string;
+      pincode?: string;
       city?: string;
       state?: string;
-      postalCode?: string;
       country?: string;
       lat?: number;
       lng?: number;
@@ -64,16 +69,24 @@ export class EndUserAddressesController {
       isActive?: boolean;
     }
   ) {
-    return this.endUserAddressesService.update(id, updateAddressDto);
+    return await this.endUserAddressesService.updateAddress(endUserId, addressId, updateAddressDto);
   }
 
   @Patch(':id/set-default')
-  setDefault(@Param('id') id: string) {
-    return this.endUserAddressesService.setDefault(id);
+  async setDefaultAddress(
+    @Param('endUserId') endUserId: string,
+    @Param('id') addressId: string
+  ) {
+    return await this.endUserAddressesService.setDefaultAddress(endUserId, addressId);
   }
 
   @Delete(':id')
-  remove(@Param('id') id: string) {
-    return this.endUserAddressesService.remove(id);
+  @HttpCode(HttpStatus.NO_CONTENT)
+  async deleteAddress(
+    @Param('endUserId') endUserId: string,
+    @Param('id') addressId: string
+  ) {
+    await this.endUserAddressesService.deleteAddress(endUserId, addressId);
+    return { message: 'Address deleted successfully' };
   }
 }

@@ -185,6 +185,8 @@ export class AuthService {
             name: true,
             email: true,
             phone: true,
+            dateOfBirth: true,
+            gender: true,
             status: true,
             createdAt: true,
           }
@@ -210,6 +212,18 @@ export class AuthService {
             email: true,
             phone: true,
             status: true,
+            serviceRadiusKm: true,
+            isAvailable: true,
+            pricingType: true,
+            priceMin: true,
+            priceMax: true,
+            plan: true,
+            planStatus: true,
+            boostActive: true,
+            boostStart: true,
+            boostEnd: true,
+            ratingAvg: true,
+            ratingCount: true,
             createdAt: true,
           }
         });
@@ -233,6 +247,63 @@ export class AuthService {
     } catch (error) {
       throw new UnauthorizedException('Failed to check phone registration status');
     }
+  }
+
+  // New method: Find existing user without creating new one
+  async findExistingUser(mobile: string, userType: string) {
+    if (userType === 'end-user') {
+      const endUser = await this.prisma.endUser.findFirst({
+        where: { phone: mobile },
+      });
+
+      if (!endUser) {
+        throw new UnauthorizedException('End user not found with this mobile number');
+      }
+
+      return {
+        id: endUser.id,
+        name: endUser.name,
+        email: endUser.email,
+        phone: endUser.phone,
+        dateOfBirth: endUser.dateOfBirth,
+        gender: endUser.gender,
+        status: endUser.status,
+        createdAt: endUser.createdAt,
+        type: 'end-user',
+      };
+    } else if (userType === 'partner') {
+      const partner = await this.prisma.partner.findFirst({
+        where: { phone: mobile },
+      });
+
+      if (!partner) {
+        throw new UnauthorizedException('Partner not found with this mobile number');
+      }
+
+      return {
+        id: partner.id,
+        name: partner.name,
+        email: partner.email,
+        phone: partner.phone,
+        status: partner.status,
+        serviceRadiusKm: partner.serviceRadiusKm,
+        isAvailable: partner.isAvailable,
+        pricingType: partner.pricingType,
+        priceMin: partner.priceMin,
+        priceMax: partner.priceMax,
+        plan: partner.plan,
+        planStatus: partner.planStatus,
+        boostActive: partner.boostActive,
+        boostStart: partner.boostStart,
+        boostEnd: partner.boostEnd,
+        ratingAvg: partner.ratingAvg,
+        ratingCount: partner.ratingCount,
+        createdAt: partner.createdAt,
+        type: 'partner',
+      };
+    }
+
+    throw new UnauthorizedException('Invalid user type');
   }
 
   async listOTPs(limit: number) {

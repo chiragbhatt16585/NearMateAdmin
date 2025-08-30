@@ -56,52 +56,62 @@ export class EndUsersService {
     page?: number;
     limit?: number;
   }) {
-    const { search, status, page = 1, limit = 20 } = query || {};
-    
-    const where: Prisma.EndUserWhereInput = {};
-    
-    if (search) {
-      where.OR = [
-        { name: { contains: search } },
-        { email: { contains: search } },
-        { phone: { contains: search } },
-      ];
-    }
-    
-    if (status) {
-      where.status = status;
-    }
-
-    const [users, total] = await Promise.all([
-      this.prisma.endUser.findMany({
-        where,
-        include: {
-          addresses: true,
-          bookings: {
-            include: {
-              partner: true,
-              category: true,
-            }
-          },
-          // billingHistory: true, // Removed - field doesn't exist in schema
-          reviews: true,
-        },
-        skip: (page - 1) * limit,
-        take: limit,
-        orderBy: { createdAt: 'desc' },
-      }),
-      this.prisma.endUser.count({ where }),
-    ]);
-
-    return {
-      users,
-      pagination: {
-        page,
-        limit,
-        total,
-        pages: Math.ceil(total / limit),
+    try {
+      console.log('EndUsersService.findAll called with query:', query);
+      
+      const { search, status, page = 1, limit = 20 } = query || {};
+      
+      const where: Prisma.EndUserWhereInput = {};
+      
+      if (search) {
+        where.OR = [
+          { name: { contains: search } },
+          { email: { contains: search } },
+          { phone: { contains: search } },
+        ];
       }
-    };
+      
+      if (status) {
+        where.status = status;
+      }
+
+      console.log('Prisma where clause:', where);
+
+      const [users, total] = await Promise.all([
+        this.prisma.endUser.findMany({
+          where,
+          include: {
+            addresses: true,
+            bookings: {
+              include: {
+                partner: true,
+                category: true,
+              }
+            },
+            reviews: true,
+          },
+          skip: (page - 1) * limit,
+          take: limit,
+          orderBy: { createdAt: 'desc' },
+        }),
+        this.prisma.endUser.count({ where }),
+      ]);
+
+      console.log(`Found ${users.length} users, total: ${total}`);
+
+      return {
+        users,
+        pagination: {
+          page,
+          limit,
+          total,
+          pages: Math.ceil(total / limit),
+        }
+      };
+    } catch (error) {
+      console.error('Error in EndUsersService.findAll:', error);
+      throw error;
+    }
   }
 
   async findOne(id: string) {

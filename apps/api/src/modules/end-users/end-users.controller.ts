@@ -35,21 +35,35 @@ export class EndUsersController {
   }
 
   @Get()
-  findAll(@Query() query: {
+  async findAll(@Query() query: {
     search?: string;
     status?: string;
     page?: string;
     limit?: string;
   }) {
-    const page = query.page ? parseInt(query.page) : 1;
-    const limit = query.limit ? parseInt(query.limit) : 20;
-    
-    return this.endUsersService.findAll({
-      search: query.search,
-      status: query.status,
-      page,
-      limit,
-    });
+    try {
+      console.log('EndUsersController.findAll called with query:', query);
+      
+      const page = query.page ? parseInt(query.page) : 1;
+      const limit = query.limit ? parseInt(query.limit) : 20;
+      
+      const result = await this.endUsersService.findAll({
+        search: query.search,
+        status: query.status,
+        page,
+        limit,
+      });
+      
+      console.log('EndUsersController.findAll result:', { 
+        userCount: result.users.length, 
+        pagination: result.pagination 
+      });
+      
+      return result;
+    } catch (error) {
+      console.error('Error in EndUsersController.findAll:', error);
+      throw error;
+    }
   }
 
   @Get(':id')

@@ -69,53 +69,46 @@ model UserProfile {
 }
 
 model ServiceCategory {
-  id        String            @id @default(uuid())
-  key       String            @unique
-  label     String
-  icon      String?
-  tone      String?
-  popular   Boolean           @default(false)
-  createdAt DateTime          @default(now())
-  updatedAt DateTime          @updatedAt
-  bookings  Booking[]
-  partners  PartnerCategory[]
-  services  ProviderService[]
-  
-  // End User Relations
+  id              String            @id @default(uuid())
+  key             String            @unique
+  label           String
+  icon            String?
+  tone            String?
+  popular         Boolean           @default(false)
+  createdAt       DateTime          @default(now())
+  updatedAt       DateTime          @updatedAt
+  bookings        Booking[]
   endUserBookings EndUserBooking[]
+  partners        PartnerCategory[]
+  services        ProviderService[]
 }
 
 model Partner {
-  id         String            @id @default(uuid())
-  name       String
-  phone      String?           @unique
-  email      String?           @unique
-  status     String            @default("active")
-  createdAt  DateTime          @default(now())
-  updatedAt  DateTime          @updatedAt
-  
-  // Additional fields that the API expects
-  loginId    String?
-  serviceRadiusKm Float?       @default(5)
-  isAvailable Boolean?         @default(true)
-  pricingType String?          @default("hourly")
-  priceMin   Int?
-  priceMax   Int?
-  plan       String?
-  planStatus String?           @default("active")
-  boostActive Boolean?         @default(false)
-  boostStart DateTime?
-  boostEnd   DateTime?
-  ratingAvg  Float?            @default(0)
-  ratingCount Int?             @default(0)
-  
-  bank       PartnerBank?
-  categories PartnerCategory[]
-  kycs       PartnerKyc?
-  
-  // End User Relations
+  id              String            @id @default(uuid())
+  name            String
+  phone           String?           @unique
+  email           String?           @unique
+  status          String            @default("active")
+  createdAt       DateTime          @default(now())
+  updatedAt       DateTime          @updatedAt
+  loginId         String?
+  boostActive     Boolean?          @default(false)
+  boostEnd        DateTime?
+  boostStart      DateTime?
+  isAvailable     Boolean?          @default(true)
+  plan            String?
+  planStatus      String?           @default("active")
+  priceMax        Int?
+  priceMin        Int?
+  pricingType     String?           @default("hourly")
+  ratingAvg       Float?            @default(0)
+  ratingCount     Int?              @default(0)
+  serviceRadiusKm Float?            @default(5)
   endUserBookings EndUserBooking[]
   endUserReviews  EndUserReview[]
+  bank            PartnerBank?
+  categories      PartnerCategory[]
+  kycs            PartnerKyc?
 }
 
 model PartnerCategory {
@@ -264,123 +257,118 @@ model ChatMessage {
   @@index([bookingId], map: "ChatMessage_bookingId_fkey")
 }
 
-// End User Models
 model EndUser {
-  id           String   @id @default(uuid())
-  email        String   @unique
-  phone        String   @unique
-  name         String
-  dateOfBirth  DateTime?
-  gender       String?
-  status       String   @default("active")
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
-  
-  addresses    EndUserAddress[]
-  bookings     EndUserBooking[]
-  billing      EndUserBilling[]
-  reviews      EndUserReview[]
+  id          String           @id @default(uuid())
+  email       String           @unique
+  phone       String           @unique
+  name        String
+  dateOfBirth DateTime?
+  gender      String?
+  status      String           @default("active")
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
+  addresses   EndUserAddress[]
+  billing     EndUserBilling[]
+  bookings    EndUserBooking[]
+  reviews     EndUserReview[]
 }
 
 model EndUserAddress {
-  id            String   @id @default(uuid())
-  endUserId     String
-  type          String   @default("home")
-  label         String
-  addressLine1  String
-  addressLine2  String?
-  city          String
-  state         String
-  postalCode    String
-  country       String   @default("India")
-  lat           Float?
-  lng           Float?
-  isDefault     Boolean  @default(false)
-  isActive      Boolean  @default(true)
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
-  
-  endUser       EndUser  @relation(fields: [endUserId], references: [id])
-  bookings      EndUserBooking[]
-  
+  id        String           @id @default(uuid())
+  endUserId String
+  type      String           @default("home")
+  label     String
+  city      String
+  state     String
+  country   String           @default("India")
+  lat       Float?
+  lng       Float?
+  isDefault Boolean          @default(false)
+  isActive  Boolean          @default(true)
+  createdAt DateTime         @default(now())
+  updatedAt DateTime         @updatedAt
+  area      String
+  pincode   String
+  endUser   EndUser          @relation(fields: [endUserId], references: [id])
+  bookings  EndUserBooking[]
+
   @@index([endUserId])
 }
 
 model EndUserBooking {
-  id                  String          @id @default(uuid())
-  endUserId           String
-  partnerId           String
-  categoryId          String
-  serviceDescription  String?
-  scheduledDate       DateTime?
-  scheduledTime       String?
-  status              String          @default("pending")
-  priority            String          @default("normal")
-  addressId           String?
-  customAddress       String?
-  lat                 Float?
-  lng                 Float?
-  quotedPrice         Float?
-  finalPrice          Float?
-  paymentStatus       String          @default("pending")
-  createdAt           DateTime        @default(now())
-  updatedAt           DateTime        @default(now())
-  completedAt         DateTime?
-  
-  endUser             EndUser         @relation(fields: [endUserId], references: [id])
-  partner             Partner         @relation(fields: [partnerId], references: [id])
-  category            ServiceCategory @relation(fields: [categoryId], references: [id])
-  address             EndUserAddress? @relation(fields: [addressId], references: [id])
-  billing             EndUserBilling?
-  review              EndUserReview?
-  
+  id                 String          @id @default(uuid())
+  endUserId          String
+  partnerId          String
+  categoryId         String
+  serviceDescription String?
+  scheduledDate      DateTime?
+  scheduledTime      String?
+  status             String          @default("pending")
+  priority           String          @default("normal")
+  addressId          String?
+  customAddress      String?
+  lat                Float?
+  lng                Float?
+  quotedPrice        Float?
+  finalPrice         Float?
+  paymentStatus      String          @default("pending")
+  createdAt          DateTime        @default(now())
+  updatedAt          DateTime        @default(now())
+  completedAt        DateTime?
+  billing            EndUserBilling?
+  address            EndUserAddress? @relation(fields: [addressId], references: [id])
+  category           ServiceCategory @relation(fields: [categoryId], references: [id])
+  endUser            EndUser         @relation(fields: [endUserId], references: [id])
+  partner            Partner         @relation(fields: [partnerId], references: [id])
+  review             EndUserReview?
+
   @@index([endUserId])
   @@index([partnerId])
   @@index([status])
+  @@index([addressId], map: "EndUserBooking_addressId_fkey")
+  @@index([categoryId], map: "EndUserBooking_categoryId_fkey")
 }
 
 model EndUserBilling {
-  id              String   @id @default(uuid())
-  endUserId       String
-  bookingId       String   @unique
-  amount          Float
-  currency        String   @default("INR")
-  taxAmount       Float    @default(0)
-  discountAmount  Float    @default(0)
-  finalAmount     Float
-  paymentMethod   String?
-  paymentStatus   String   @default("pending")
-  transactionId   String?
-  paidAt          DateTime?
-  invoiceNumber   String?
-  invoiceDate     DateTime?
-  dueDate         DateTime?
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
-  
-  endUser         EndUser         @relation(fields: [endUserId], references: [id])
-  booking         EndUserBooking  @relation(fields: [bookingId], references: [id])
-  
+  id             String         @id @default(uuid())
+  endUserId      String
+  bookingId      String         @unique
+  amount         Float
+  currency       String         @default("INR")
+  taxAmount      Float          @default(0)
+  discountAmount Float          @default(0)
+  finalAmount    Float
+  paymentMethod  String?
+  paymentStatus  String         @default("pending")
+  transactionId  String?
+  paidAt         DateTime?
+  invoiceNumber  String?
+  invoiceDate    DateTime?
+  dueDate        DateTime?
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @updatedAt
+  booking        EndUserBooking @relation(fields: [bookingId], references: [id])
+  endUser        EndUser        @relation(fields: [endUserId], references: [id])
+
   @@index([endUserId])
   @@index([paymentStatus])
 }
 
 model EndUserReview {
-  id           String   @id @default(uuid())
-  endUserId    String
-  bookingId    String   @unique
-  partnerId    String
-  rating       Int
-  comment      String?
-  isAnonymous  Boolean  @default(false)
-  status       String   @default("active")
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
-  
-  endUser      EndUser         @relation(fields: [endUserId], references: [id])
-  booking      EndUserBooking  @relation(fields: [bookingId], references: [id])
-  partner      Partner         @relation(fields: [partnerId], references: [id])
-  
+  id          String         @id @default(uuid())
+  endUserId   String
+  bookingId   String         @unique
+  partnerId   String
+  rating      Int
+  comment     String?
+  isAnonymous Boolean        @default(false)
+  status      String         @default("active")
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
+  booking     EndUserBooking @relation(fields: [bookingId], references: [id])
+  endUser     EndUser        @relation(fields: [endUserId], references: [id])
+  partner     Partner        @relation(fields: [partnerId], references: [id])
+
   @@index([endUserId])
   @@index([partnerId])
   @@index([rating])
@@ -390,13 +378,27 @@ model OTPCode {
   id        String   @id @default(uuid())
   phone     String   @db.VarChar(32)
   code      String   @db.VarChar(10)
-  purpose   String   @default("login") // "login" or "register"
-  actor     String   // "end_user" or "partner"
+  purpose   String   @default("login")
+  actor     String
   is_used   Boolean  @default(false) @map("is_used")
   createdAt DateTime @default(now()) @map("createdAt")
   expiresAt DateTime @map("expiresAt")
-  
-  @@map("OTPCode")
+
   @@index([phone])
   @@index([expiresAt])
+  @@map("OTPCode")
+}
+
+model PincodeData {
+  id       String @id @default(uuid())
+  pincode  String
+  district String
+  city     String
+  state    String
+  area     String?
+  
+  @@index([pincode])
+  @@index([city])
+  @@index([state])
+  @@index([district])
 }

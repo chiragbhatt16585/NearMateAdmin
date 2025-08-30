@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import Card from '../common/Card';
 import PortalModal from '../common/PortalModal';
+import AdminAddressManagement from '../../components/AdminAddressManagement';
 
 interface EndUser {
   id: string;
@@ -21,11 +22,10 @@ interface EndUserAddress {
   id: string;
   type: string;
   label: string;
-  addressLine1: string;
-  addressLine2?: string;
+  area: string;
+  pincode: string;
   city: string;
   state: string;
-  postalCode: string;
   country: string;
   isDefault: boolean;
   isActive: boolean;
@@ -72,6 +72,7 @@ const EndUsers: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
+  const [activeTab, setActiveTab] = useState<'users' | 'addresses'>('users');
 
   // OTP States
   const [otpStep, setOtpStep] = useState<'phone' | 'validation' | 'otp' | 'details'>('phone');
@@ -99,7 +100,18 @@ const EndUsers: React.FC = () => {
 
   const fetchUsers = async () => {
     try {
+      setLoading(true);
       const token = localStorage.getItem('accessToken');
+      
+      if (!token) {
+        console.error('No authentication token found');
+        setUsers([]);
+        setTotalPages(1);
+        return;
+      }
+      
+      console.log('Fetching users...', { currentPage, searchTerm });
+      
       const response = await fetch(
         `/api/v1/end-users?page=${currentPage}&search=${searchTerm}`,
         {
@@ -109,13 +121,23 @@ const EndUsers: React.FC = () => {
         }
       );
       
+      console.log('Users API response status:', response.status);
+      
       if (response.ok) {
         const data = await response.json();
-        setUsers(data.users);
-        setTotalPages(data.pagination.pages);
+        console.log('Users API response data:', data);
+        setUsers(data.users || []);
+        setTotalPages(data.pagination?.pages || 1);
+      } else {
+        const errorData = await response.json().catch(() => ({}));
+        console.error('Users API error:', response.status, errorData);
+        setUsers([]);
+        setTotalPages(1);
       }
     } catch (error) {
       console.error('Error fetching users:', error);
+      setUsers([]);
+      setTotalPages(1);
     } finally {
       setLoading(false);
     }
@@ -309,76 +331,126 @@ const EndUsers: React.FC = () => {
         </button>
       </div>
 
-      {/* Search and Filters */}
-      <div className="flex gap-4">
-        <input
-          type="text"
-          placeholder="Search users..."
-          value={searchTerm}
-          onChange={(e) => setSearchTerm(e.target.value)}
-          className="flex-1 border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-gray-900/10"
-        />
+      {/* Tab Navigation */}
+      <div className="border-b border-gray-200">
+        <nav className="flex space-x-8">
+          <button
+            onClick={() => setActiveTab('users')}
+            className={`py-4 px-1 border-b-2 font-medium text-sm ${
+              activeTab === 'users'
+                ? 'border-black text-black'
+                : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+            }`}
+          >
+            User Management
+          </button>
+          <button
+            onClick={() => setActiveTab('addresses')}
+            className={`py-4 px-1 border-b-2 font-medium text-sm ${
+              activeTab === 'addresses'
+                ? 'border-black text-black'
+                : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+            }`}
+          >
+            Address Management
+          </button>
+        </nav>
       </div>
 
-      {/* Users Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {users.map((user) => (
-          <Card key={user.id} className="p-6">
-            <div className="flex justify-between items-start mb-4">
-              <div>
-                <h3 className="text-lg font-semibold text-gray-900">{user.name}</h3>
-                <p className="text-sm text-gray-600">{user.email}</p>
-                <p className="text-sm text-gray-600">{user.phone}</p>
-              </div>
-              <span className={`px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(user.status)}`}>
-                {user.status}
-              </span>
-            </div>
+      {/* Tab Content */}
+      {activeTab === 'users' ? (
+        <>
+          {/* Search and Filters */}
+          <div className="flex gap-4">
+            <input
+              type="text"
+              placeholder="Search users..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="flex-1 border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-gray-900/10"
+            />
+          </div>
 
-            <div className="space-y-3 mb-4">
-              <div className="flex justify-between text-sm">
-                <span className="text-gray-600">Addresses:</span>
-                <span className="font-medium">{user.addresses.length}</span>
-              </div>
-              <div className="flex justify-between text-sm">
-                <span className="text-gray-600">Bookings:</span>
-                <span className="font-medium">{user.bookings.length}</span>
-              </div>
-              <div className="flex justify-between text-sm">
-                <span className="text-gray-600">Total Spent:</span>
-                <span className="font-medium">₹{user.billing?.reduce((sum, bill) => sum + bill.finalAmount, 0) || 0}</span>
-              </div>
+          {/* Users Grid */}
+          {loading ? (
+            <div className="text-center py-8">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-black mx-auto"></div>
+              <p className="mt-2 text-gray-500">Loading users...</p>
             </div>
-
-            <div className="flex gap-2">
+          ) : users.length === 0 ? (
+            <div className="text-center py-8">
+              <p className="text-gray-500">No users found.</p>
               <button
-                onClick={() => handleViewUser(user)}
-                className="flex-1 bg-gray-100 text-gray-700 px-3 py-2 rounded-lg text-sm hover:bg-gray-200"
+                onClick={fetchUsers}
+                className="mt-2 px-4 py-2 bg-black text-white rounded-lg hover:bg-gray-800"
               >
-                View Details
+                Retry Loading Users
               </button>
             </div>
-          </Card>
-        ))}
-      </div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {users.map((user) => (
+                <Card key={user.id} className="p-6">
+                  <div className="flex justify-between items-start mb-4">
+                    <div>
+                      <h3 className="text-lg font-semibold text-gray-900">{user.name}</h3>
+                      <p className="text-sm text-gray-600">{user.email}</p>
+                      <p className="text-sm text-gray-600">{user.phone}</p>
+                    </div>
+                    <span className={`px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(user.status)}`}>
+                      {user.status}
+                    </span>
+                  </div>
 
-      {/* Pagination */}
-      {totalPages > 1 && (
-        <div className="flex justify-center gap-2">
-          {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
-            <button
-              key={page}
-              onClick={() => setCurrentPage(page)}
-              className={`px-3 py-2 rounded-lg text-sm ${
-                currentPage === page
-                  ? 'bg-black text-white'
-                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-              }`}
-            >
-              {page}
-            </button>
-          ))}
-        </div>
+                  <div className="space-y-3 mb-4">
+                    <div className="flex justify-between text-sm">
+                      <span className="text-gray-600">Addresses:</span>
+                      <span className="font-medium">{user.addresses.length}</span>
+                    </div>
+                    <div className="flex justify-between text-sm">
+                      <span className="text-gray-600">Bookings:</span>
+                      <span className="font-medium">{user.bookings.length}</span>
+                    </div>
+                    <div className="flex justify-between text-sm">
+                      <span className="text-gray-600">Total Spent:</span>
+                      <span className="font-medium">₹{user.billing?.reduce((sum, bill) => sum + bill.finalAmount, 0) || 0}</span>
+                    </div>
+                  </div>
+
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => handleViewUser(user)}
+                      className="flex-1 bg-gray-100 text-gray-700 px-3 py-2 rounded-lg text-sm hover:bg-gray-200"
+                    >
+                      View Details
+                    </button>
+                  </div>
+                </Card>
+              ))}
+            </div>
+          )}
+
+          {/* Pagination */}
+          {totalPages > 1 && (
+            <div className="flex justify-center gap-2">
+              {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
+                <button
+                  key={page}
+                  onClick={() => setCurrentPage(page)}
+                  className={`px-3 py-2 rounded-lg text-sm ${
+                    currentPage === page
+                      ? 'bg-black text-white'
+                      : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                  }`}
+                >
+                  {page}
+                </button>
+              ))}
+            </div>
+          )}
+        </>
+      ) : (
+        <AdminAddressManagement />
       )}
 
       {/* View User Modal */}
@@ -434,9 +506,8 @@ const EndUsers: React.FC = () => {
                         </span>
                       </div>
                     </div>
-                    <p className="text-sm text-gray-600">{address.addressLine1}</p>
-                    {address.addressLine2 && <p className="text-sm text-gray-600">{address.addressLine2}</p>}
-                    <p className="text-sm text-gray-600">{address.city}, {address.state} {address.postalCode}</p>
+                    <p className="text-sm text-gray-600">{address.area}</p>
+                    <p className="text-sm text-gray-600">{address.city}, {address.state} - {address.pincode}</p>
                   </div>
                 ))}
               </div>
