@@ -88,10 +88,18 @@ const Categories: React.FC<CategoriesProps> = ({ token }) => {
 		const body: any = {};
 		if (editKey.trim()) body.key = editKey.trim();
 		if (editLabel.trim()) body.label = editLabel.trim();
-		if (!body.key && !body.label && !editIcon.trim() && !editTone.trim()) { alert('Nothing to update'); return; }
-		if (editIcon.trim().length) body.icon = editIcon.trim();
-		if (editTone.trim().length) body.tone = editTone.trim();
+		
+		// Always include icon and tone fields, even if empty (to allow clearing them)
+		body.icon = editIcon.trim();
+		body.tone = editTone.trim();
 		body.popular = !!editPopular;
+		
+		// Check if there's actually something to update
+		if (!body.key && !body.label && !body.icon && !body.tone && body.popular === false) { 
+			alert('Nothing to update'); 
+			return; 
+		}
+		
 		const res = await fetch(`/api/v1/categories/${editingId}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` }, body: JSON.stringify(body) });
 		if (!res.ok) {
 			const msg = await res.text();

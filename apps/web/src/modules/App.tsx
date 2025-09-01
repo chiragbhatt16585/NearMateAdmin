@@ -9,6 +9,7 @@ import EndUsers from './end-users/EndUsers';
 import Categories from './categories/Categories';
 import Items from './items/Items';
 import OTPManagement from './otp/OTPManagement';
+import ApiIntegrationDashboard from '../components/ApiIntegrationDashboard';
 import { useAuthState } from './hooks/useAuthState';
 
 export const App: React.FC = () => {
@@ -26,6 +27,7 @@ export const App: React.FC = () => {
 						<Route path="/users" element={<Users token={auth.token} />} />
 						<Route path="/end-users" element={<EndUsers />} />
 						<Route path="/otp-management" element={<OTPManagement token={auth.token} />} />
+						<Route path="/api-integration" element={<ApiIntegrationDashboard />} />
 						<Route path="*" element={<Navigate to="/dashboard" replace />} />
 					</Routes>
 				</AppLayout>

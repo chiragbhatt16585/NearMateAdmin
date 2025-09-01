@@ -38,7 +38,9 @@ export class CategoriesController {
 
   @Patch(':id')
   update(@Param('id') id: string, @Body() body: { key?: string; label?: string; icon?: string; tone?: string; popular?: boolean }) {
-    const data: { key?: string; label?: string; icon?: string; tone?: string; popular?: boolean } = {};
+    console.log('🔍 PATCH request body:', JSON.stringify(body, null, 2));
+    
+    const data: { key?: string; label?: string; icon?: string | null; tone?: string | null; popular?: boolean } = {};
     if (typeof body?.key === 'string') {
       const v = body.key.trim();
       if (!v) throw new BadRequestException('Key cannot be empty');
@@ -51,15 +53,18 @@ export class CategoriesController {
     }
     if (typeof body?.icon === 'string') {
       const v = body.icon.trim();
-      data.icon = v.length ? v : undefined;
+      data.icon = v.length > 0 ? v : null; // Use null to clear the field
     }
     if (typeof body?.tone === 'string') {
       const v = body.tone.trim();
-      data.tone = v.length ? v : undefined;
+      data.tone = v.length > 0 ? v : null; // Use null to clear the field
     }
     if (typeof body?.popular === 'boolean') {
       data.popular = body.popular;
     }
+    
+    console.log('📤 Data being sent to service:', JSON.stringify(data, null, 2));
+    
     try {
       return this.categories.update(id, data);
     } catch (e: any) {

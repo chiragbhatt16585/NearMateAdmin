@@ -19,7 +19,8 @@ export class CategoriesService {
     return row;
   }
 
-  update(id: string, data: { key?: string; label?: string; icon?: string; tone?: string; popular?: boolean }) {
+  update(id: string, data: { key?: string; label?: string; icon?: string | null; tone?: string | null; popular?: boolean }) {
+    console.log('🔧 Service update called with data:', JSON.stringify(data, null, 2));
     return this.prisma.serviceCategory.update({ where: { id }, data });
   }
 
